@@ -1,0 +1,342 @@
+/* ========================================
+   POWER RESERVATIONS ELEMENTOR WIDGET STYLES
+   ======================================== */
+
+/* Base Elementor Widget Styles */
+.pr-elementor-widget {
+  width: 100%;
+  max-width: 600px;
+}
+
+.pr-elementor-form {
+  width: 100%;
+}
+
+.pr-elementor-title {
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: #1d2327;
+}
+
+/* Form Field Styles */
+.pr-elementor-field {
+  margin-bottom: 1.5rem;
+}
+
+.pr-elementor-field label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #1d2327;
+}
+
+.pr-elementor-field input,
+.pr-elementor-field select,
+.pr-elementor-field textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background-color: #fff;
+  color: #1d2327;
+}
+
+.pr-elementor-field input:focus,
+.pr-elementor-field select:focus,
+.pr-elementor-field textarea:focus {
+  outline: none;
+  border-color: #007cba;
+  box-shadow: 0 0 0 3px rgba(0, 124, 186, 0.1);
+}
+
+.pr-elementor-field textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Submit Button Styles */
+.pr-elementor-button-wrapper {
+  margin-top: 2rem;
+}
+
+.pr-elementor-submit {
+  display: inline-block;
+  padding: 1rem 2rem;
+  background-color: #007cba;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  border: 2px solid #007cba;
+}
+
+.pr-elementor-submit:hover {
+  background-color: #005a87;
+  border-color: #005a87;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 124, 186, 0.3);
+}
+
+.pr-elementor-submit:active {
+  transform: translateY(0);
+}
+
+/* Form Style Variations */
+
+/* Minimal Style */
+.pr-elementor-style-minimal .pr-elementor-form {
+  padding: 1.5rem;
+  background: #f9f9f9;
+  border-radius: 8px;
+}
+
+.pr-elementor-style-minimal .pr-elementor-field input,
+.pr-elementor-style-minimal .pr-elementor-field select,
+.pr-elementor-style-minimal .pr-elementor-field textarea {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 0.6rem 0.8rem;
+}
+
+.pr-elementor-style-minimal .pr-elementor-submit {
+  background-color: #333;
+  border-color: #333;
+  border-radius: 4px;
+  padding: 0.8rem 1.5rem;
+}
+
+.pr-elementor-style-minimal .pr-elementor-submit:hover {
+  background-color: #555;
+  border-color: #555;
+}
+
+/* Modern Style */
+.pr-elementor-style-modern .pr-elementor-form {
+  padding: 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.pr-elementor-style-modern .pr-elementor-title {
+  color: #fff;
+  text-align: center;
+}
+
+.pr-elementor-style-modern .pr-elementor-field label {
+  color: #fff;
+  font-weight: 600;
+}
+
+.pr-elementor-style-modern .pr-elementor-field input,
+.pr-elementor-style-modern .pr-elementor-field select,
+.pr-elementor-style-modern .pr-elementor-field textarea {
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 8px;
+  padding: 1rem 1.2rem;
+}
+
+.pr-elementor-style-modern .pr-elementor-field input:focus,
+.pr-elementor-style-modern .pr-elementor-field select:focus,
+.pr-elementor-style-modern .pr-elementor-field textarea:focus {
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+}
+
+.pr-elementor-style-modern .pr-elementor-submit {
+  background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+  border: none;
+  border-radius: 25px;
+  padding: 1rem 2.5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.pr-elementor-style-modern .pr-elementor-submit:hover {
+  background: linear-gradient(45deg, #ff5252, #ff7979);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+}
+
+/* Elegant Style */
+.pr-elementor-style-elegant .pr-elementor-form {
+  padding: 2.5rem;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 0;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+}
+
+.pr-elementor-style-elegant .pr-elementor-title {
+  font-family: serif;
+  font-weight: 300;
+  font-size: 2.5rem;
+  text-align: center;
+  color: #2c3e50;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.pr-elementor-style-elegant .pr-elementor-title::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50px;
+  height: 2px;
+  background: #c9a96e;
+}
+
+.pr-elementor-style-elegant .pr-elementor-field label {
+  font-family: serif;
+  font-weight: 400;
+  color: #2c3e50;
+  margin-bottom: 0.8rem;
+}
+
+.pr-elementor-style-elegant .pr-elementor-field input,
+.pr-elementor-style-elegant .pr-elementor-field select,
+.pr-elementor-style-elegant .pr-elementor-field textarea {
+  border: none;
+  border-bottom: 2px solid #e5e5e5;
+  border-radius: 0;
+  padding: 0.8rem 0;
+  background: transparent;
+  transition: border-color 0.3s ease;
+}
+
+.pr-elementor-style-elegant .pr-elementor-field input:focus,
+.pr-elementor-style-elegant .pr-elementor-field select:focus,
+.pr-elementor-style-elegant .pr-elementor-field textarea:focus {
+  border-bottom-color: #c9a96e;
+  box-shadow: none;
+}
+
+.pr-elementor-style-elegant .pr-elementor-submit {
+  background: transparent;
+  color: #2c3e50;
+  border: 2px solid #c9a96e;
+  border-radius: 0;
+  padding: 1rem 3rem;
+  font-family: serif;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  transition: all 0.3s ease;
+}
+
+.pr-elementor-style-elegant .pr-elementor-submit:hover {
+  background: #c9a96e;
+  color: #fff;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Message Styles */
+.pr-message {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 6px;
+}
+
+.pr-message.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.pr-message.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .pr-elementor-title {
+    font-size: 1.8rem;
+  }
+
+  .pr-elementor-form {
+    padding: 1.5rem 1rem;
+  }
+
+  .pr-elementor-style-modern .pr-elementor-form,
+  .pr-elementor-style-elegant .pr-elementor-form {
+    padding: 2rem 1.5rem;
+  }
+
+  .pr-elementor-field {
+    margin-bottom: 1.2rem;
+  }
+
+  .pr-elementor-submit {
+    width: 100%;
+    padding: 1rem;
+  }
+
+  .pr-elementor-style-elegant .pr-elementor-title {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .pr-elementor-title {
+    font-size: 1.5rem;
+  }
+
+  .pr-elementor-form {
+    padding: 1rem;
+  }
+
+  .pr-elementor-style-modern .pr-elementor-form,
+  .pr-elementor-style-elegant .pr-elementor-form {
+    padding: 1.5rem 1rem;
+  }
+}
+
+/* Loading States */
+.pr-elementor-submit.loading {
+  opacity: 0.7;
+  cursor: not-allowed;
+  position: relative;
+}
+
+.pr-elementor-submit.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: -8px 0 0 -8px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Elementor Editor Styles */
+.elementor-editor-active .pr-elementor-submit {
+  pointer-events: none;
+}

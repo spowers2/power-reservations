@@ -1,0 +1,94 @@
+/*
+ * Power Reservations - Minimal Frontend Styles
+ * Ultra-minimal styling for maximum theme compatibility
+ */
+
+.pr-reservation-wrapper {
+  margin: 20px 0;
+  max-width: 100%;
+}
+
+.pr-form {
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.pr-form-row {
+  margin-bottom: 15px;
+}
+
+.pr-form-group {
+  margin-bottom: 15px;
+}
+
+.pr-form-label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.pr-form-control {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.pr-form-control:focus {
+  outline: none;
+  border-color: #007cba;
+}
+
+.pr-btn {
+  display: inline-block;
+  padding: 10px 20px;
+  margin: 5px 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.pr-btn-primary {
+  background-color: #007cba;
+  border-color: #007cba;
+  color: #fff;
+}
+
+.pr-btn-primary:hover {
+  background-color: #005a87;
+  border-color: #005a87;
+}
+
+.pr-error-message {
+  color: #dc3232;
+  font-size: 13px;
+  margin-top: 5px;
+}
+
+.pr-success-message {
+  color: #46b450;
+  font-size: 14px;
+  padding: 10px;
+  border: 1px solid #46b450;
+  border-radius: 4px;
+  background: #f7fff7;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pr-form {
+    padding: 15px;
+  }
+
+  .pr-form-control {
+    padding: 10px;
+  }
+}

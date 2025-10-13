@@ -1,0 +1,42 @@
+# Ignore WordPress and system files
+.DS_Store
+.idea/
+*.swp
+*.swo
+*~
+.vscode/
+.htaccess
+
+# Ignore node modules
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Ignore composer
+vendor/
+composer.lock
+
+# Ignore build files
+*.min.js
+*.min.css
+.sass-cache/
+
+# Ignore logs
+*.log
+error_log
+debug.log
+
+# Ignore temporary files
+*.tmp
+*.bak
+*.cache
+
+# Ignore OS files
+Thumbs.db
+desktop.ini
+
+# Keep plugin files
+!assets/
+!includes/
+!templates/
+!languages/

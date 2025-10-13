@@ -1,0 +1,471 @@
+/* ========================================
+   POWER RESERVATIONS - MODERN FRONTEND STYLES
+   ======================================== 
+   
+   Ultra-modern, responsive reservation form styling
+   designed for optimal user experience across all devices.
+   
+   Features:
+   - Centered layouts with CSS Grid/Flexbox
+   - Modern design tokens and CSS variables
+   - Advanced animations and micro-interactions
+   - Responsive breakpoints for all screen sizes
+   - Theme integration capabilities
+   - Accessibility-first design patterns
+   
+   ======================================== */
+
+/* ========================================
+   CSS CUSTOM PROPERTIES (DESIGN TOKENS)
+   ======================================== */
+:root {
+  /* Brand Colors */
+  --pr-primary: #667eea;
+  --pr-primary-dark: #5a6fd8;
+  --pr-primary-light: #8394ed;
+  --pr-secondary: #764ba2;
+  --pr-accent: #f093fb;
+  --pr-gradient: linear-gradient(135deg, var(--pr-primary) 0%, var(--pr-secondary) 100%);
+  
+  /* Status Colors */
+  --pr-success: #10b981;
+  --pr-warning: #f59e0b;
+  --pr-error: #ef4444;
+  --pr-info: #3b82f6;
+  
+  /* Neutral Palette */
+  --pr-white: #ffffff;
+  --pr-gray-50: #f9fafb;
+  --pr-gray-100: #f3f4f6;
+  --pr-gray-200: #e5e7eb;
+  --pr-gray-300: #d1d5db;
+  --pr-gray-400: #9ca3af;
+  --pr-gray-500: #6b7280;
+  --pr-gray-600: #4b5563;
+  --pr-gray-700: #374151;
+  --pr-gray-800: #1f2937;
+  --pr-gray-900: #111827;
+  
+  /* Typography Scale */
+  --pr-font-xs: 0.75rem;
+  --pr-font-sm: 0.875rem;
+  --pr-font-base: 1rem;
+  --pr-font-lg: 1.125rem;
+  --pr-font-xl: 1.25rem;
+  --pr-font-2xl: 1.5rem;
+  --pr-font-3xl: 1.875rem;
+  --pr-font-4xl: 2.25rem;
+  
+  /* Spacing Scale */
+  --pr-space-xs: 0.25rem;
+  --pr-space-sm: 0.5rem;
+  --pr-space-md: 1rem;
+  --pr-space-lg: 1.5rem;
+  --pr-space-xl: 2rem;
+  --pr-space-2xl: 3rem;
+  --pr-space-3xl: 4rem;
+  
+  /* Border Radius */
+  --pr-radius-sm: 0.375rem;
+  --pr-radius-md: 0.5rem;
+  --pr-radius-lg: 0.75rem;
+  --pr-radius-xl: 1rem;
+  --pr-radius-2xl: 1.5rem;
+  --pr-radius-full: 9999px;
+  
+  /* Shadows */
+  --pr-shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --pr-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --pr-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --pr-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --pr-shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --pr-shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  --pr-shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+  
+  /* Transitions */
+  --pr-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --pr-transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --pr-transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ========================================
+   GLOBAL FORM CONTAINER LAYOUT
+   ======================================== */
+
+/* Full-width container for centering */
+.pr-form-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--pr-space-lg);
+  background: linear-gradient(135deg, var(--pr-gray-50) 0%, var(--pr-gray-100) 100%);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Main form wrapper - centered and responsive */
+.pr-reservation-wrapper {
+  width: 100%;
+  max-width: 600px;
+  background: var(--pr-white);
+  border-radius: var(--pr-radius-2xl);
+  box-shadow: var(--pr-shadow-2xl);
+  overflow: hidden;
+  position: relative;
+  animation: pr-fade-in-up var(--pr-transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Elegant header with gradient */
+.pr-form-header {
+  background: var(--pr-gradient);
+  color: var(--pr-white);
+  padding: var(--pr-space-2xl);
+  text-align: center;
+  position: relative;
+}
+
+.pr-form-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="20" cy="20" r="1" fill="white" opacity="0.1"/><circle cx="80" cy="40" r="0.5" fill="white" opacity="0.1"/><circle cx="40" cy="80" r="1.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+  opacity: 0.3;
+}
+
+.pr-form-header h3 {
+  margin: 0;
+  font-size: var(--pr-font-3xl);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--pr-space-md);
+}
+
+.pr-form-header .pr-header-icon {
+  font-size: var(--pr-font-4xl);
+  opacity: 0.9;
+}
+
+.pr-form-header p {
+  margin: var(--pr-space-md) 0 0 0;
+  opacity: 0.9;
+  font-size: var(--pr-font-lg);
+  position: relative;
+  z-index: 1;
+}
+
+/* Form content area */
+.pr-form-content {
+  padding: var(--pr-space-2xl);
+}
+
+/* ========================================
+   MODERN FORM LAYOUT SYSTEM
+   ======================================== */
+
+/* Form grid layout */
+.pr-form {
+  display: grid;
+  gap: var(--pr-space-lg);
+}
+
+/* Form row with modern spacing */
+.pr-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pr-space-sm);
+}
+
+/* Two-column layout for larger screens */
+.pr-form-row-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--pr-space-lg);
+}
+
+/* ========================================
+   MODERN FORM LABELS
+   ======================================== */
+.pr-form-row label {
+  display: flex;
+  align-items: center;
+  gap: var(--pr-space-xs);
+  font-weight: 600;
+  color: var(--pr-gray-700);
+  font-size: var(--pr-font-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--pr-space-xs);
+}
+
+.pr-form-row label .pr-required-indicator {
+  color: var(--pr-error);
+  font-weight: 700;
+}
+
+.pr-form-row label .pr-field-icon {
+  font-size: var(--pr-font-base);
+  opacity: 0.7;
+}
+
+/* ========================================
+   ULTRA-MODERN FORM INPUTS
+   ======================================== */
+
+/* Base input styling */
+.pr-form-row input,
+.pr-form-row select,
+.pr-form-row textarea {
+  width: 100%;
+  padding: var(--pr-space-lg);
+  border: 2px solid var(--pr-gray-200);
+  border-radius: var(--pr-radius-lg);
+  font-size: var(--pr-font-base);
+  font-family: inherit;
+  background: var(--pr-white);
+  color: var(--pr-gray-800);
+  transition: all var(--pr-transition-normal);
+  box-sizing: border-box;
+  appearance: none;
+  position: relative;
+}
+
+/* Enhanced focus states */
+.pr-form-row input:focus,
+.pr-form-row select:focus,
+.pr-form-row textarea:focus {
+  outline: none;
+  border-color: var(--pr-primary);
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1), var(--pr-shadow-md);
+  transform: translateY(-1px);
+}
+
+/* Hover effects */
+.pr-form-row input:hover,
+.pr-form-row select:hover,
+.pr-form-row textarea:hover {
+  border-color: var(--pr-gray-300);
+  box-shadow: var(--pr-shadow-sm);
+}
+
+/* Disabled state */
+.pr-form-row input:disabled,
+.pr-form-row select:disabled,
+.pr-form-row textarea:disabled {
+  background: var(--pr-gray-50);
+  color: var(--pr-gray-400);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Placeholder styling */
+.pr-form-row input::placeholder,
+.pr-form-row textarea::placeholder {
+  color: var(--pr-gray-400);
+  opacity: 1;
+}
+
+/* ========================================
+   ENHANCED SELECT DROPDOWNS
+   ======================================== */
+.pr-form-row select {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%236b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,9 12,15 18,9"></polyline></svg>');
+  background-repeat: no-repeat;
+  background-position: right var(--pr-space-lg) center;
+  background-size: 20px;
+  padding-right: calc(var(--pr-space-lg) + 30px);
+}
+
+.pr-form-row select:focus {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,9 12,15 18,9"></polyline></svg>');
+}
+
+/* ========================================
+   MODERN TEXTAREA STYLING
+   ======================================== */
+.pr-form-row textarea {
+  min-height: 120px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+/* ========================================
+   ADVANCED SUBMIT BUTTON
+   ======================================== */
+.pr-submit-container {
+  margin-top: var(--pr-space-xl);
+  text-align: center;
+}
+
+.pr-submit-button {
+  background: var(--pr-gradient);
+  color: var(--pr-white);
+  border: none;
+  border-radius: var(--pr-radius-full);
+  padding: var(--pr-space-lg) var(--pr-space-2xl);
+  font-size: var(--pr-font-lg);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--pr-transition-normal);
+  box-shadow: var(--pr-shadow-lg);
+  position: relative;
+  overflow: hidden;
+  min-width: 200px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pr-submit-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left var(--pr-transition-slow);
+}
+
+.pr-submit-button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--pr-shadow-2xl);
+}
+
+.pr-submit-button:hover::before {
+  left: 100%;
+}
+
+.pr-submit-button:active {
+  transform: translateY(0);
+}
+
+.pr-submit-button:disabled {
+  background: var(--pr-gray-300);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: var(--pr-shadow-sm);
+}
+
+/* Keyframe animations */
+@keyframes pr-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pr-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pr-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ========================================
+   RESPONSIVE DESIGN SYSTEM
+   ======================================== */
+
+/* Large screens (desktops) */
+@media (min-width: 1024px) {
+  .pr-form-container {
+    padding: var(--pr-space-2xl);
+  }
+  
+  .pr-reservation-wrapper {
+    max-width: 700px;
+  }
+  
+  .pr-form-content {
+    padding: var(--pr-space-3xl);
+  }
+}
+
+/* Medium screens (tablets) */
+@media (max-width: 1023px) and (min-width: 768px) {
+  .pr-form-container {
+    padding: var(--pr-space-lg);
+  }
+  
+  .pr-form-row-group {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Small screens (mobile) */
+@media (max-width: 767px) {
+  .pr-form-container {
+    padding: var(--pr-space-md);
+    align-items: flex-start;
+    min-height: auto;
+  }
+  
+  .pr-reservation-wrapper {
+    margin: var(--pr-space-lg) 0;
+  }
+  
+  .pr-form-header {
+    padding: var(--pr-space-xl);
+  }
+  
+  .pr-form-header h3 {
+    font-size: var(--pr-font-2xl);
+    flex-direction: column;
+    gap: var(--pr-space-sm);
+  }
+  
+  .pr-form-content {
+    padding: var(--pr-space-xl);
+  }
+  
+  .pr-form-row-group {
+    grid-template-columns: 1fr;
+  }
+  
+  .pr-submit-button {
+    width: 100%;
+    padding: var(--pr-space-lg);
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  .pr-form-container {
+    padding: var(--pr-space-sm);
+  }
+  
+  .pr-form-header,
+  .pr-form-content {
+    padding: var(--pr-space-lg);
+  }
+  
+  .pr-form-header h3 {
+    font-size: var(--pr-font-xl);
+  }
+  
+  .pr-form-row input,
+  .pr-form-row select,
+  .pr-form-row textarea {
+    padding: var(--pr-space-md);
+  }
+}
