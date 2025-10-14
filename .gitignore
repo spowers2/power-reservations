@@ -31,6 +31,10 @@ debug.log
 *.bak
 *.cache
 
+# Ignore zip files and archives
+*.zip
+archived-zips/
+
 # Ignore OS files
 Thumbs.db
 desktop.ini
