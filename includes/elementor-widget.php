@@ -1,6 +1,10 @@
 <?php
 /**
  * Power Reservations Elementor Widget
+ *
+ * @package PowerReservations
+ * @since 1.0.0
+ * @license GPL-2.0-or-later
  */
 
 if (!defined('ABSPATH')) {

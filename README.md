@@ -2,7 +2,7 @@
 
 A powerful and flexible WordPress reservation system plugin with Elementor integration, perfect for restaurants, venues, and any business requiring appointment scheduling.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
 ![WordPress](https://img.shields.io/badge/wordpress-5.0%2B-brightgreen.svg)
 ![PHP](https://img.shields.io/badge/php-7.4%2B-purple.svg)
 ![License](https://img.shields.io/badge/license-GPL--2.0-orange.svg)

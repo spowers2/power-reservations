@@ -3,7 +3,7 @@
  * Plugin Name: Power Reservations
  * Plugin URI: https://github.com/scottpowers/power-reservations
  * Description: Simple restaurant reservation management system for WordPress.
- * Version: 2.0.0
+ * Version: 2.0.4
  * Author: Scott Powers
  * Author URI: https://scottpowers.dev
  * License: GPL v2 or later
@@ -12,7 +12,6 @@
  * Requires at least: 5.0
  * Tested up to: 6.4
  * Requires PHP: 7.4
- * Network: false
  * 
  * Plugin Structure:
  * ================
@@ -38,7 +37,7 @@ if (!function_exists('add_action')) {
 }
 
 // Plugin constants
-define('PR_VERSION', '2.0.0');
+define('PR_VERSION', '2.0.4'); // Rev4: Fixed form builder validation issues and preview styling
 define('PR_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('PR_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('PR_PLUGIN_FILE', __FILE__);
@@ -334,6 +333,14 @@ class PR_Reservations_List_Table extends WP_List_Table {
     }
     
     /**
+     * Get reservations table name
+     */
+    private function get_reservations_table() {
+        global $wpdb;
+        return $wpdb->prefix . 'pr_reservations';
+    }
+    
+    /**
      * Delete reservation
      */
     private function delete_reservation($reservation_id) {
@@ -518,7 +525,7 @@ class PowerReservations {
         
         // Query vars for reservation management
         add_filter('query_vars', array($this, 'add_query_vars'));
-        add_action('wp', array($this, 'handle_reservation_actions'));
+        add_action('template_redirect', array($this, 'handle_reservation_actions'));
         
         // Dashboard widget
         add_action('wp_dashboard_setup', array($this, 'add_dashboard_widget'));
@@ -1036,7 +1043,7 @@ class PowerReservations {
                         </div>
                         
                         <div style="text-align: center; margin: 30px 0;">
-                            <a href="{admin_link}" style="background-color: #28a745; color: white; padding: 15px 40px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; font-size: 16px;">
+                            <a href="{admin_link}" style="background-color: #28a745; color: white; padding: 15px 40px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
                                 Manage This Reservation
                             </a>
                         </div>
@@ -1288,9 +1295,9 @@ class PowerReservations {
                     break;
             }
             if ($message) {
-                echo '<div class="pr-notification pr-notification-' . $type . '">';
+                echo '<div class="pr-notification pr-notification-' . esc_attr($type) . '">';
                 echo '<span class="dashicons dashicons-yes-alt"></span>';
-                echo '<span>' . $message . '</span>';
+                echo '<span>' . esc_html($message) . '</span>';
                 echo '<button class="pr-notification-close">&times;</button>';
                 echo '</div>';
             }
@@ -1342,9 +1349,8 @@ class PowerReservations {
         echo '</div>';
         echo '</div>';
         
-        echo '<div class="pr-dashboard-layout">';
-        echo '<div class="pr-admin-content">';
-        echo '<div class="pr-card">';
+        // Full width reservations table
+        echo '<div class="pr-card pr-reservations-table-card">';
         echo '<div class="pr-card-header">';
         echo '<h2 class="pr-card-title">' . __('All Reservations', 'power-reservations') . '</h2>';
         echo '<div class="pr-card-actions">';
@@ -1361,19 +1367,21 @@ class PowerReservations {
         echo '</div>';
         echo '</div>';
         
-        echo '<div class="pr-card-content">';
+        echo '<div class="pr-card-content pr-table-wrapper">';
         // List table
         echo '<form method="post">';
         $list_table->display();
         echo '</form>';
         echo '</div>';
         echo '</div>';
-        echo '</div>';
         
-        echo '<div class="pr-sidebar">';
-        echo '<div class="pr-card">';
+        // Bottom section with Quick Actions and Shortcodes
+        echo '<div class="pr-bottom-section">';
+        echo '<div class="pr-bottom-grid">';
+        
+        echo '<div class="pr-card pr-bottom-card">';
         echo '<div class="pr-card-header">';
-        echo '<h3 class="pr-card-title">' . __('Quick Actions', 'power-reservations') . '</h3>';
+        echo '<h3 class="pr-card-title"><span class="dashicons dashicons-admin-tools"></span> ' . __('Quick Actions', 'power-reservations') . '</h3>';
         echo '</div>';
         echo '<div class="pr-card-content">';
         echo '<div class="pr-action-grid">';
@@ -1389,13 +1397,17 @@ class PowerReservations {
         echo '<span class="dashicons dashicons-art"></span>';
         echo '<span>' . __('Form Styling', 'power-reservations') . '</span>';
         echo '</a>';
+        echo '<a href="' . admin_url('admin.php?page=pr-settings') . '" class="pr-action-card">';
+        echo '<span class="dashicons dashicons-admin-settings"></span>';
+        echo '<span>' . __('Settings', 'power-reservations') . '</span>';
+        echo '</a>';
         echo '</div>';
         echo '</div>';
         echo '</div>';
         
-        echo '<div class="pr-card">';
+        echo '<div class="pr-card pr-bottom-card">';
         echo '<div class="pr-card-header">';
-        echo '<h3 class="pr-card-title">' . __('Shortcodes', 'power-reservations') . '</h3>';
+        echo '<h3 class="pr-card-title"><span class="dashicons dashicons-shortcode"></span> ' . __('Shortcodes', 'power-reservations') . '</h3>';
         echo '</div>';
         echo '<div class="pr-card-content">';
         echo '<div class="pr-shortcode-item">';
@@ -1414,8 +1426,9 @@ class PowerReservations {
         echo '</div>';
         echo '</div>';
         echo '</div>';
-        echo '</div>';
-        echo '</div>'; // Close .pr-dashboard-layout
+        
+        echo '</div>'; // Close .pr-bottom-grid
+        echo '</div>'; // Close .pr-bottom-section
         
         echo '</div>'; // .pr-admin-container
         echo '</div>'; // .wrap.pr-admin-page
@@ -1467,12 +1480,13 @@ class PowerReservations {
             
             foreach ($required_fields as $field) {
                 if (!isset($_POST[$field]) || empty(trim($_POST[$field]))) {
+                    /* translators: %s: Field name (e.g., Name, Email, Party size) */
                     $validation_errors[] = sprintf(__('%s is required', 'power-reservations'), ucfirst(str_replace('_', ' ', $field)));
                 }
             }
             
             if (!empty($validation_errors)) {
-                echo '<div class="notice notice-error"><p>' . implode('<br>', $validation_errors) . '</p></div>';
+                echo '<div class="notice notice-error"><p>' . esc_html(implode(', ', $validation_errors)) . '</p></div>';
             } else {
                 $result = $wpdb->update(
                     $table_name,
@@ -1533,7 +1547,7 @@ class PowerReservations {
         echo '<td><select name="status">';
         $statuses = array('pending', 'approved', 'declined', 'cancelled');
         foreach ($statuses as $status) {
-            echo '<option value="' . $status . '"' . selected($reservation->status, $status, false) . '>' . ucfirst($status) . '</option>';
+            echo '<option value="' . esc_attr($status) . '"' . selected($reservation->status, $status, false) . '>' . esc_html(ucfirst($status)) . '</option>';
         }
         echo '</select></td></tr>';
         
@@ -1569,7 +1583,6 @@ class PowerReservations {
         echo '<p><strong>' . __('Date:', 'power-reservations') . '</strong> ' . esc_html($reservation->reservation_date) . '</p>';
         echo '<p><strong>' . __('Time:', 'power-reservations') . '</strong> ' . esc_html($reservation->reservation_time) . '</p>';
         echo '<p><strong>' . __('Party Size:', 'power-reservations') . '</strong> ' . esc_html($reservation->party_size) . '</p>';
-        echo '<p><strong>' . __('Status:', 'power-reservations') . '</strong> ' . esc_html(ucfirst($reservation->status)) . '</p>';
         if ($reservation->special_requests) {
             echo '<p><strong>' . __('Special Requests:', 'power-reservations') . '</strong><br>' . esc_html($reservation->special_requests) . '</p>';
         }
@@ -1617,12 +1630,6 @@ class PowerReservations {
                 }
                 update_option('pr_time_slots', $time_slots);
             }
-            
-            echo '<div class="pr-notification pr-notification-success">';
-            echo '<span class="dashicons dashicons-yes-alt"></span>';
-            echo '<span>' . __('Settings saved successfully!', 'power-reservations') . '</span>';
-            echo '<button class="pr-notification-close">&times;</button>';
-            echo '</div>';
         }
         
         $business_name = get_option('pr_business_name', get_bloginfo('name'));
@@ -1633,8 +1640,20 @@ class PowerReservations {
             '6:00 PM', '6:30 PM', '7:00 PM', '7:30 PM', '8:00 PM', '8:30 PM', '9:00 PM', '9:30 PM'
         ));
         
+        $settings_saved = isset($_POST['submit']);
+        
         echo '<div class="wrap pr-admin-page">';
         echo '<div class="pr-admin-container">';
+        
+        // Show notification inside container
+        if ($settings_saved) {
+            echo '<div class="pr-notification pr-notification-success">';
+            echo '<span class="dashicons dashicons-yes-alt"></span>';
+            echo '<span>' . __('Settings saved successfully!', 'power-reservations') . '</span>';
+            echo '<button class="pr-notification-close">&times;</button>';
+            echo '</div>';
+        }
+        
         echo '<div class="pr-admin-header">';
         echo '<h1 class="pr-page-title">' . __('Reservation Settings', 'power-reservations') . '</h1>';
         echo '<p class="pr-page-subtitle">' . __('Configure your reservation system settings', 'power-reservations') . '</p>';
@@ -1683,21 +1702,23 @@ class PowerReservations {
         echo '</div>';
         
         echo '<div class="pr-form-group pr-time-slots-section">';
-        echo '<label class="pr-label">' . __('Available Time Slots', 'power-reservations') . '</label>';
-        echo '<div class="pr-time-slots-container" id="pr-time-slots">';
+    echo '<label class="pr-label">' . __('Available Time Slots', 'power-reservations') . '</label>';
+    echo '<small class="pr-help-text pr-help-text-top">' . __('Drag and drop to reorder time slots', 'power-reservations') . '</small>';
+    echo '<div class="pr-time-slots-container" id="pr-time-slots">';
         foreach ($time_slots as $index => $slot) {
             echo '<div class="pr-time-slot-item">';
+            echo '<span class="pr-time-drag-handle dashicons dashicons-menu" title="' . __('Drag to reorder', 'power-reservations') . '"></span>';
             echo '<input type="text" name="pr_time_slots[]" value="' . esc_attr($slot) . '" placeholder="' . __('e.g. 6:00 PM', 'power-reservations') . '" class="pr-input pr-time-input" />';
-            echo '<button type="button" class="pr-btn pr-btn-sm pr-btn-danger pr-remove-time-slot">';
+            echo '<button type="button" class="pr-btn pr-btn-sm pr-btn-danger pr-remove-time-slot" title="' . __('Remove time slot', 'power-reservations') . '">';
             echo '<span class="dashicons dashicons-no-alt"></span>';
             echo '</button>';
             echo '</div>';
         }
         echo '</div>';
         echo '<button type="button" id="pr-add-time-slot" class="pr-btn pr-btn-sm pr-btn-outline">';
-        echo '<span class="dashicons dashicons-plus-alt"></span>' . __('Add Time Slot', 'power-reservations');
-        echo '</button>';
-        echo '<small class="pr-help-text">' . __('Configure available reservation time slots (e.g., 6:00 PM, 7:30 PM)', 'power-reservations') . '</small>';
+    echo '<span class="dashicons dashicons-plus-alt"></span>' . __('Add Time Slot', 'power-reservations');
+    echo '</button>';
+        echo '<small class="pr-help-text">' . __('Time slots will be displayed to customers in the order shown above', 'power-reservations') . '</small>';
         echo '</div>';
         echo '</div>';
         
@@ -1772,10 +1793,11 @@ class PowerReservations {
             echo '<div class="pr-notification pr-notification-warning">';
             echo '<span class="dashicons dashicons-info"></span>';
             echo '<span>';
-            echo sprintf(
+            echo esc_html(sprintf(
+                /* translators: %s: Comma-separated list of missing template names */
                 __('Missing default templates: %s. Use the "Restore Defaults" button to restore them.', 'power-reservations'),
                 implode(', ', $missing_templates)
-            );
+            ));
             echo '</span>';
             echo '</div>';
         }
@@ -1810,6 +1832,7 @@ class PowerReservations {
             
             foreach ($required_fields as $field) {
                 if (!isset($_POST[$field]) || empty(trim($_POST[$field]))) {
+                    /* translators: %s: Field name (e.g., Template name, Template subject) */
                     $validation_errors[] = sprintf(__('%s is required', 'power-reservations'), ucfirst(str_replace('_', ' ', $field)));
                 }
             }
@@ -1817,7 +1840,7 @@ class PowerReservations {
             if (!empty($validation_errors)) {
                 echo '<div class="pr-notification pr-notification-error">';
                 echo '<span class="dashicons dashicons-warning"></span>';
-                echo '<span>' . implode('<br>', $validation_errors) . '</span>';
+                echo '<span>' . esc_html(implode(', ', $validation_errors)) . '</span>';
                 echo '</div>';
             } else {
                 global $wpdb;
@@ -1966,7 +1989,7 @@ class PowerReservations {
             echo '<label class="pr-checkbox-label">';
             echo '<input type="checkbox" name="is_active" value="1"' . ($edit_template && $edit_template->is_active ? ' checked' : (!$edit_template ? ' checked' : '')) . '>';
             echo '<span class="pr-checkbox-custom"></span>';
-            echo __('Template is active', 'power-reservations');
+            esc_html_e('Template is active', 'power-reservations');
             echo '</label>';
             echo '</div>';
             
@@ -2005,24 +2028,6 @@ class PowerReservations {
             echo '</div>';
             
             echo '<div class="pr-card-content">';
-            
-            // Add debug status information
-            $stats = $this->get_template_stats();
-            echo '<div class="pr-debug-info" style="background: #f0f6fc; border: 1px solid #0969da; border-radius: 6px; padding: 15px; margin-bottom: 20px;">';
-            echo '<h4 style="margin: 0 0 10px 0; color: #0969da;">Debug Information</h4>';
-            echo '<div style="font-family: monospace; font-size: 12px;">';
-            echo '<strong>Tables Status:</strong><br>';
-            if (isset($stats['table_exists'])) {
-                echo '• Email Templates Table: ' . ($stats['table_exists'] ? '✅ EXISTS' : '❌ MISSING') . '<br>';
-            }
-            echo '<strong>Templates Found:</strong> ' . ($stats['total_templates'] ?? 0) . '<br>';
-            if (!empty($stats['missing_templates'])) {
-                echo '<strong>Missing Templates:</strong> ' . implode(', ', $stats['missing_templates']) . '<br>';
-            }
-            echo '<strong>Database Prefix:</strong> ' . $GLOBALS['wpdb']->prefix . '<br>';
-            echo '<strong>Full Table Name:</strong> ' . $this->get_templates_table() . '<br>';
-            echo '</div>';
-            echo '</div>';
             
             if (empty($templates)) {
                 echo '<div class="pr-empty-state">';
@@ -2119,7 +2124,6 @@ class PowerReservations {
         echo '</div>';
         echo '</div>';
         
-        echo '</div>'; // .pr-admin-content
         echo '</div>'; // .pr-admin-container
         echo '</div>'; // .wrap.pr-admin-page
     }
@@ -2228,6 +2232,10 @@ class PowerReservations {
         $field_order = get_option('pr_form_field_order', array_keys($available_fields));
         $field_settings = get_option('pr_form_field_settings', array());
         
+        $booking_window = get_option('pr_booking_window', 30);
+        $min_date = date('Y-m-d', strtotime('+1 day'));
+        $max_date = date('Y-m-d', strtotime("+{$booking_window} days"));
+        
         echo '<div class="pr-admin-content">';
         
         echo '<form method="post" id="pr-form-builder-form" class="pr-form">';
@@ -2282,7 +2290,10 @@ class PowerReservations {
         echo '<div class="pr-preview-section">';
         echo '<h3 class="pr-section-title">' . __('Form Preview', 'power-reservations') . '</h3>';
         echo '<div class="pr-form-preview" id="pr-live-form-preview">';
-        echo do_shortcode('[power_reservations]');
+        
+        // Render preview form (non-functional, for display only)
+        $this->render_preview_form();
+        
         echo '</div>';
         echo '</div>';
         
@@ -2308,8 +2319,8 @@ class PowerReservations {
             // Field Header
             echo '<div class="pr-field-header">';
             echo '<div class="pr-field-title">';
-            echo '<span class="pr-field-icon">' . $field_info['icon'] . '</span>';
-            echo '<span>' . $field_info['label'] . ' (' . ucfirst($field_info['type']) . ')</span>';
+            echo '<span class="pr-field-icon">' . esc_html($field_info['icon']) . '</span>';
+            echo '<span>' . esc_html($field_info['label']) . ' (' . esc_html(ucfirst($field_info['type'])) . ')</span>';
             if ($field_info['required_default']) {
                 echo '<span class="pr-required-field">*</span>';
             }
@@ -2342,7 +2353,7 @@ class PowerReservations {
                 echo '<div style="margin-top: 10px;">';
                 echo '<label>';
                 echo '<input type="checkbox" name="' . $field_key . '_required" value="1"' . checked($is_required, true, false) . '>';
-                echo __('Required Field', 'power-reservations');
+                esc_html_e('Required Field', 'power-reservations');
                 echo '</label>';
                 echo '</div>';
             }
@@ -2373,1454 +2384,268 @@ class PowerReservations {
     }
     
     /**
-     * Form Styling page
+     * Form Styling admin page
      */
     public function form_styling_page() {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        // Handle save
+        $styling_saved = false;
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pr_form_styling_nonce']) && wp_verify_nonce($_POST['pr_form_styling_nonce'], 'pr_save_form_styling')) {
+            $styling_mode = isset($_POST['pr_styling_mode']) ? sanitize_text_field($_POST['pr_styling_mode']) : 'custom';
+            update_option('pr_styling_mode', $styling_mode);
+            
+            // Always save custom styling options (even if not in custom mode, so they're preserved)
+            $primary_color = isset($_POST['pr_primary_color']) ? sanitize_hex_color($_POST['pr_primary_color']) : '#667eea';
+            $secondary_color = isset($_POST['pr_secondary_color']) ? sanitize_hex_color($_POST['pr_secondary_color']) : '#764ba2';
+            $button_color = isset($_POST['pr_button_color']) ? sanitize_hex_color($_POST['pr_button_color']) : '#667eea';
+            $input_border_color = isset($_POST['pr_input_border_color']) ? sanitize_hex_color($_POST['pr_input_border_color']) : '#ddd';
+            $label_color = isset($_POST['pr_label_color']) ? sanitize_hex_color($_POST['pr_label_color']) : '#888';
+            $font_size = isset($_POST['pr_font_size']) ? absint($_POST['pr_font_size']) : 16;
+            $border_radius = isset($_POST['pr_border_radius']) ? absint($_POST['pr_border_radius']) : 8;
+            $input_padding = isset($_POST['pr_input_padding']) ? absint($_POST['pr_input_padding']) : 12;
+            $form_width = isset($_POST['pr_form_width']) ? absint($_POST['pr_form_width']) : 600;
+            
+            update_option('pr_primary_color', $primary_color);
+            update_option('pr_secondary_color', $secondary_color);
+            update_option('pr_button_color', $button_color);
+            update_option('pr_input_border_color', $input_border_color);
+            update_option('pr_label_color', $label_color);
+            update_option('pr_font_size', $font_size);
+            update_option('pr_border_radius', $border_radius);
+            update_option('pr_input_padding', $input_padding);
+            update_option('pr_form_width', $form_width);
+            
+            $styling_saved = true;
+        }
+
+        $current_mode = get_option('pr_styling_mode', 'custom');
+        $primary_color = get_option('pr_primary_color', '#667eea');
+        $secondary_color = get_option('pr_secondary_color', '#764ba2');
+        $button_color = get_option('pr_button_color', '#667eea');
+        $input_border_color = get_option('pr_input_border_color', '#ddd');
+        $label_color = get_option('pr_label_color', '#888');
+        $font_size = get_option('pr_font_size', 16);
+        $border_radius = get_option('pr_border_radius', 8);
+        $input_padding = get_option('pr_input_padding', 12);
+        $form_width = get_option('pr_form_width', 600);
+
         echo '<div class="wrap pr-admin-page">';
         echo '<div class="pr-admin-container">';
-        echo '<div class="pr-admin-header">';
-        echo '<h1 class="pr-page-title">' . __('Form Styling', 'power-reservations') . '</h1>';
-        echo '<p class="pr-page-subtitle">' . __('Customize the appearance of your reservation form', 'power-reservations') . '</p>';
-        echo '</div>';
         
-        // Handle form submission
-        if (isset($_POST['form_colors'])) {
-            update_option('pr_form_colors', array_map('sanitize_hex_color', $_POST['form_colors']));
-            
-            if (isset($_POST['custom_css'])) {
-                update_option('pr_custom_css', wp_strip_all_tags($_POST['custom_css']));
-            }
-            
+        // Show notification inside container
+        if ($styling_saved) {
             echo '<div class="pr-notification pr-notification-success">';
             echo '<span class="dashicons dashicons-yes-alt"></span>';
-            echo '<span>' . __('Styling saved successfully!', 'power-reservations') . '</span>';
+            echo '<span>' . __('Form styling saved successfully!', 'power-reservations') . '</span>';
             echo '<button class="pr-notification-close">&times;</button>';
             echo '</div>';
         }
         
-        $form_colors = get_option('pr_form_colors', array(
-            'primary' => '#007cba',
-            'secondary' => '#50575e',
-            'background' => '#ffffff',
-            'text' => '#1d2327'
-        ));
-        
-        $custom_css = get_option('pr_custom_css', '');
+        echo '<div class="pr-admin-header">';
+        echo '<h1 class="pr-page-title">' . esc_html__('Form Styling', 'power-reservations') . '</h1>';
+        echo '<p class="pr-page-subtitle">' . esc_html__('Customize the appearance of your reservation form', 'power-reservations') . '</p>';
+        echo '</div>';
         
         echo '<div class="pr-admin-content">';
-        echo '<form method="post" class="pr-form">';
+        echo '<div class="pr-two-column-layout">';
+        
+        // Left column - Styling controls
+        echo '<div class="pr-styling-controls">';
+        echo '<form method="post" action="" id="pr-styling-form">';
+        wp_nonce_field('pr_save_form_styling', 'pr_form_styling_nonce');
         
         echo '<div class="pr-card">';
         echo '<div class="pr-card-header">';
-        echo '<h2 class="pr-card-title">' . __('Color Settings', 'power-reservations') . '</h2>';
-        echo '<p class="pr-card-description">' . __('Customize the color scheme of your reservation form', 'power-reservations') . '</p>';
+        echo '<h2 class="pr-card-title">' . esc_html__('Styling Mode', 'power-reservations') . '</h2>';
         echo '</div>';
         echo '<div class="pr-card-content">';
-        echo '<div class="pr-form-grid">';
+        echo '<div class="pr-radio-group">';
+        echo '<label class="pr-radio-option"><input type="radio" name="pr_styling_mode" value="custom" ' . checked($current_mode, 'custom', false) . ' /> Custom</label>';
+        echo '<label class="pr-radio-option"><input type="radio" name="pr_styling_mode" value="theme" ' . checked($current_mode, 'theme', false) . ' /> Use Theme</label>';
+        echo '<label class="pr-radio-option"><input type="radio" name="pr_styling_mode" value="minimal" ' . checked($current_mode, 'minimal', false) . ' /> Minimal</label>';
+        echo '</div>';
+        echo '</div>';
+        echo '</div>';
+        
+        // Custom styling options (show only if custom mode)
+        echo '<div id="custom-styling-options" style="' . ($current_mode !== 'custom' ? 'display:none;' : '') . '">';
+        
+        echo '<div class="pr-card">';
+        echo '<div class="pr-card-header">';
+        echo '<h2 class="pr-card-title">🎨 ' . esc_html__('Colors', 'power-reservations') . '</h2>';
+        echo '</div>';
+        echo '<div class="pr-card-content">';
         
         echo '<div class="pr-form-group">';
-        echo '<label for="primary_color" class="pr-label">' . __('Primary Color', 'power-reservations') . '</label>';
-        echo '<input type="color" id="primary_color" name="form_colors[primary]" value="' . esc_attr($form_colors['primary']) . '" class="pr-color-input">';
-        echo '<small class="pr-help-text">' . __('Main color for buttons and highlights', 'power-reservations') . '</small>';
+        echo '<label>' . esc_html__('Primary Color', 'power-reservations') . '</label>';
+        echo '<input type="color" name="pr_primary_color" value="' . esc_attr($primary_color) . '" class="pr-color-input" />';
         echo '</div>';
         
         echo '<div class="pr-form-group">';
-        echo '<label for="secondary_color" class="pr-label">' . __('Secondary Color', 'power-reservations') . '</label>';
-        echo '<input type="color" id="secondary_color" name="form_colors[secondary]" value="' . esc_attr($form_colors['secondary']) . '" class="pr-color-input">';
-        echo '<small class="pr-help-text">' . __('Secondary accent color', 'power-reservations') . '</small>';
+        echo '<label>' . esc_html__('Secondary Color', 'power-reservations') . '</label>';
+        echo '<input type="color" name="pr_secondary_color" value="' . esc_attr($secondary_color) . '" class="pr-color-input" />';
         echo '</div>';
         
         echo '<div class="pr-form-group">';
-        echo '<label for="background_color" class="pr-label">' . __('Background Color', 'power-reservations') . '</label>';
-        echo '<input type="color" id="background_color" name="form_colors[background]" value="' . esc_attr($form_colors['background']) . '" class="pr-color-input">';
-        echo '<small class="pr-help-text">' . __('Form background color', 'power-reservations') . '</small>';
+        echo '<label>' . esc_html__('Button Color', 'power-reservations') . '</label>';
+        echo '<input type="color" name="pr_button_color" value="' . esc_attr($button_color) . '" class="pr-color-input" />';
         echo '</div>';
         
         echo '<div class="pr-form-group">';
-        echo '<label for="text_color" class="pr-label">' . __('Text Color', 'power-reservations') . '</label>';
-        echo '<input type="color" id="text_color" name="form_colors[text]" value="' . esc_attr($form_colors['text']) . '" class="pr-color-input">';
-        echo '<small class="pr-help-text">' . __('Main text color', 'power-reservations') . '</small>';
+        echo '<label>' . esc_html__('Input Border Color', 'power-reservations') . '</label>';
+        echo '<input type="color" name="pr_input_border_color" value="' . esc_attr($input_border_color) . '" class="pr-color-input" />';
         echo '</div>';
         
+        echo '<div class="pr-form-group">';
+        echo '<label>' . esc_html__('Label Color', 'power-reservations') . '</label>';
+        echo '<input type="color" name="pr_label_color" value="' . esc_attr($label_color) . '" class="pr-color-input" />';
         echo '</div>';
+        
         echo '</div>';
         echo '</div>';
         
         echo '<div class="pr-card">';
         echo '<div class="pr-card-header">';
-        echo '<h2 class="pr-card-title">' . __('Custom CSS', 'power-reservations') . '</h2>';
-        echo '<p class="pr-card-description">' . __('Add custom CSS to further customize your form appearance', 'power-reservations') . '</p>';
+        echo '<h2 class="pr-card-title">📐 ' . esc_html__('Dimensions', 'power-reservations') . '</h2>';
         echo '</div>';
         echo '<div class="pr-card-content">';
+        
         echo '<div class="pr-form-group">';
-        echo '<label for="custom_css" class="pr-label">' . __('Custom CSS Code', 'power-reservations') . '</label>';
-        echo '<textarea id="custom_css" name="custom_css" rows="10" class="pr-textarea pr-code" placeholder="/* Add your custom CSS here */">' . esc_textarea($custom_css) . '</textarea>';
-        echo '<small class="pr-help-text">' . __('Use CSS to override default styling and add custom effects', 'power-reservations') . '</small>';
+        echo '<label>' . esc_html__('Font Size (px)', 'power-reservations') . '</label>';
+        echo '<input type="number" name="pr_font_size" value="' . esc_attr($font_size) . '" min="12" max="24" class="pr-number-input" />';
+        echo '</div>';
+        
+        echo '<div class="pr-form-group">';
+        echo '<label>' . esc_html__('Border Radius (px)', 'power-reservations') . '</label>';
+        echo '<input type="number" name="pr_border_radius" value="' . esc_attr($border_radius) . '" min="0" max="50" class="pr-number-input" />';
+        echo '</div>';
+        
+        echo '<div class="pr-form-group">';
+        echo '<label>' . esc_html__('Input Padding (px)', 'power-reservations') . '</label>';
+        echo '<input type="number" name="pr_input_padding" value="' . esc_attr($input_padding) . '" min="8" max="24" class="pr-number-input" />';
+        echo '</div>';
+        
+        echo '<div class="pr-form-group">';
+        echo '<label>' . esc_html__('Form Max Width (px)', 'power-reservations') . '</label>';
+        echo '<input type="number" name="pr_form_width" value="' . esc_attr($form_width) . '" min="400" max="1200" step="50" class="pr-number-input" />';
+        echo '</div>';
+        
         echo '</div>';
         echo '</div>';
+        
+        echo '</div>'; // #custom-styling-options
         
         echo '<div class="pr-card-footer">';
-        echo '<button type="submit" class="pr-btn pr-btn-primary">';
-        echo '<span class="dashicons dashicons-saved"></span>' . __('Save Styling', 'power-reservations');
-        echo '</button>';
-        echo '<a href="' . admin_url('admin.php?page=pr-form-builder') . '" class="pr-btn pr-btn-secondary">' . __('Back to Form Builder', 'power-reservations') . '</a>';
-        echo '</div>';
+        echo '<button type="submit" class="pr-btn pr-btn-primary">' . esc_html__('Save Styling', 'power-reservations') . '</button>';
+        echo '<a href="' . admin_url('admin.php?page=pr-form-builder') . '" class="pr-btn pr-btn-secondary">' . esc_html__('Back to Form Builder', 'power-reservations') . '</a>';
         echo '</div>';
         
         echo '</form>';
+        echo '</div>'; // .pr-styling-controls
+        
+        // Right column - Live preview
+        echo '<div class="pr-live-preview">';
+        echo '<div class="pr-card">';
+        echo '<div class="pr-card-header">';
+        echo '<h2 class="pr-card-title">👁️ ' . esc_html__('Live Preview', 'power-reservations') . '</h2>';
+        echo '</div>';
+        echo '<div class="pr-card-content">';
+        echo '<div id="pr-form-preview-container" style="background:#f5f5f5; padding:2em; border-radius:8px;">';
+        
+        // Render preview form (non-functional, for display only)
+        $this->render_preview_form();
+        
+        echo '</div>';
+        echo '</div>';
+        echo '</div>';
+        echo '</div>'; // .pr-live-preview
+        
+        echo '</div>'; // .pr-two-column-layout
         echo '</div>'; // .pr-admin-content
         echo '</div>'; // .pr-admin-container
-        echo '</div>'; // .wrap.pr-admin-page
-    }
-    
-    /**
-     * Enqueue frontend scripts
-     */
-    public function enqueue_scripts() {
-        // Enqueue jQuery UI for datepicker
-        wp_enqueue_script('jquery-ui-datepicker');
-        wp_enqueue_style('jquery-ui-style', 'https://code.jquery.com/ui/1.13.2/themes/ui-lightness/jquery-ui.css', array(), '1.13.2');
+        echo '</div>'; // .wrap
         
-        // Enqueue plugin scripts
-        wp_enqueue_script('pr-frontend', PR_PLUGIN_URL . 'assets/frontend.js', array('jquery', 'jquery-ui-datepicker'), PR_VERSION, true);
-        
-        // Enqueue Elementor styles if Elementor is active
-        if (did_action('elementor/loaded')) {
-            wp_enqueue_style('pr-elementor', PR_PLUGIN_URL . 'assets/elementor.css', array(), PR_VERSION);
-        }
-        
-        // Get styling mode
-        $styling_mode = get_option('pr_styling_mode', 'custom');
-        
-        // Add modern inline CSS styles for all modes
-        $base_css = "
-        /* Modern Power Reservations Form Styles */
-        .pr-reservation-wrapper {
-            max-width: 600px;
-            margin: 0 auto;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-        }
-        
-        .pr-form {
-            background: #ffffff;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            border: 1px solid #e0e4e7;
-        }
-        
-        .pr-form-group {
-            margin-bottom: 20px;
-        }
-        
-        .pr-form-label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #1d2327;
-            font-size: 14px;
-        }
-        
-        .pr-form-control {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            background-color: #ffffff;
-            box-sizing: border-box;
-        }
-        
-        .pr-form-control:focus {
-            outline: none;
-            border-color: #007cba;
-            box-shadow: 0 0 0 3px rgba(0, 124, 186, 0.1);
-        }
-        
-        .pr-btn {
-            display: inline-block;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-            box-sizing: border-box;
-        }
-        
-        .pr-btn-primary {
-            background: linear-gradient(135deg, #007cba 0%, #005a87 100%);
-            color: white;
-            border: 2px solid #007cba;
-        }
-        
-        .pr-btn-primary:hover {
-            background: linear-gradient(135deg, #005a87 0%, #004066 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 124, 186, 0.3);
-        }
-        
-        .pr-btn-secondary {
-            background: #f8f9fa;
-            color: #50575e;
-            border: 2px solid #ddd;
-        }
-        
-        .pr-btn-secondary:hover {
-            background: #e9ecef;
-            border-color: #adb5bd;
-        }
-        
-        .pr-form-row {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .pr-form-col {
-            flex: 1;
-        }
-        
-        .pr-availability-check {
-            margin: 20px 0;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-left: 4px solid #007cba;
-        }
-        
-        .pr-error-message {
-            color: #dc3545;
-            font-size: 14px;
-            margin-top: 5px;
-        }
-        
-        .pr-success-message {
-            color: #28a745;
-            background: #d4edda;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .pr-loading {
-            opacity: 0.6;
-            pointer-events: none;
-            position: relative;
-        }
-        
-        .pr-loading::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 20px;
-            height: 20px;
-            margin: -10px 0 0 -10px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #007cba;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .pr-form {
-                margin: 10px;
-                padding: 20px;
-            }
+        // Add inline JavaScript for toggling custom options and live preview
+        echo '<script>
+        jQuery(document).ready(function($) {
+            $("input[name=pr_styling_mode]").on("change", function() {
+                if ($(this).val() === "custom") {
+                    $("#custom-styling-options").slideDown();
+                } else {
+                    $("#custom-styling-options").slideUp();
+                }
+            });
             
-            .pr-form-row {
-                flex-direction: column;
-                gap: 0;
-            }
-            
-            .pr-btn {
-                width: 100%;
-                margin-bottom: 10px;
-            }
-        }
-        
-        /* Time Slots Styling */
-        .pr-time-slots {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 10px;
-            margin-top: 15px;
-        }
-        
-        .pr-time-slot {
-            padding: 10px;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: white;
-        }
-        
-        .pr-time-slot:hover {
-            border-color: #007cba;
-            background: #f0f8ff;
-        }
-        
-        .pr-time-slot.selected {
-            background: #007cba;
-            color: white;
-            border-color: #005a87;
-        }
-        
-        .pr-time-slot.unavailable {
-            background: #f8f9fa;
-            color: #6c757d;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-        ";
-        
-        // Add the base styles regardless of mode
-        wp_add_inline_style('wp-block-library', $base_css);
-        
-        // Add mode-specific styling customizations
-        $additional_css = "";
-        
-        if ($styling_mode === 'custom') {
-            $form_colors = get_option('pr_form_colors', array(
-                'primary' => '#007cba',
-                'secondary' => '#50575e',
-                'background' => '#ffffff',
-                'text' => '#1d2327'
-            ));
-            
-            $additional_css .= "
-            /* Custom Color Overrides */
-            .pr-reservation-wrapper {
-                --pr-primary: {$form_colors['primary']};
-                --pr-secondary: {$form_colors['secondary']};
-                --pr-background: {$form_colors['background']};
-                --pr-text: {$form_colors['text']};
-            }
-            
-            .pr-btn-primary {
-                background: linear-gradient(135deg, {$form_colors['primary']} 0%, " . $this->darken_color($form_colors['primary'], 20) . " 100%) !important;
-                border-color: {$form_colors['primary']} !important;
-            }
-            
-            .pr-btn-primary:hover {
-                background: linear-gradient(135deg, " . $this->darken_color($form_colors['primary'], 20) . " 0%, " . $this->darken_color($form_colors['primary'], 40) . " 100%) !important;
-            }
-            
-            .pr-form-control:focus {
-                border-color: {$form_colors['primary']} !important;";
-            
-            // Safely convert hex to rgba
-            $primary_rgb = sscanf($form_colors['primary'], '#%02x%02x%02x');
-            if ($primary_rgb && count($primary_rgb) === 3) {
-                $additional_css .= "
-                box-shadow: 0 0 0 3px rgba(" . implode(',', $primary_rgb) . ", 0.1) !important;";
-            }
-            
-            $additional_css .= "
-            }
-            
-            .pr-form {
-                background-color: {$form_colors['background']} !important;
-                color: {$form_colors['text']} !important;
-            }
-            
-            .pr-availability-check {
-                border-left-color: {$form_colors['primary']} !important;
-            }
-            
-            .pr-time-slot:hover {
-                border-color: {$form_colors['primary']} !important;
-            }
-            
-            .pr-time-slot.selected {
-                background: {$form_colors['primary']} !important;
-                border-color: " . $this->darken_color($form_colors['primary'], 20) . " !important;
-            }
-            ";
-            
-            $user_custom_css = get_option('pr_custom_css', '');
-            if ($user_custom_css) {
-                $additional_css .= "\n/* User Custom CSS */\n" . $user_custom_css;
-            }
-            
-        } elseif ($styling_mode === 'theme') {
-            // Theme mode - minimal overrides to inherit theme styles
-            $additional_css .= "
-            /* Theme Integration Mode */
-            .pr-reservation-wrapper {
-                font-family: inherit !important;
-                color: inherit !important;
-            }
-            
-            .pr-form {
-                background: var(--wp--preset--color--background, #ffffff) !important;
-                color: var(--wp--preset--color--foreground, inherit) !important;
-                box-shadow: none !important;
-                border: 1px solid var(--wp--preset--color--border, #ddd) !important;
-            }
-            
-            .pr-btn-primary {
-                background: var(--wp-admin-theme-color, #007cba) !important;
-                border-color: var(--wp-admin-theme-color, #007cba) !important;
-            }
-            ";
-            
-        } elseif ($styling_mode === 'minimal') {
-            // Minimal mode - very basic styling
-            $additional_css .= "
-            /* Minimal Styling Mode */
-            .pr-form {
-                box-shadow: none !important;
-                border: 1px solid #ddd !important;
-                padding: 20px !important;
-            }
-            
-            .pr-btn-primary {
-                background: #0073aa !important;
-                border: 1px solid #0073aa !important;
-            }
-            
-            .pr-btn-primary:hover {
-                background: #005a87 !important;
-                transform: none !important;
-                box-shadow: none !important;
-            }
-            ";
-        }
-        
-        // Add the additional CSS if we have any
-        if (!empty($additional_css)) {
-            wp_add_inline_style('wp-block-library', $additional_css);
-        }
-        
-        // Localize script with enhanced data
-        wp_localize_script('pr-frontend', 'pr_ajax', array(
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('pr_nonce'),
-            'booking_window' => get_option('pr_booking_window', 30),
-            'blackout_dates' => get_option('pr_blackout_dates', array()),
-            'strings' => array(
-                'loading' => __('Loading...', 'power-reservations'),
-                'checking_availability' => __('Checking availability...', 'power-reservations'),
-                'no_times_available' => __('No times available for this date.', 'power-reservations'),
-                'reservation_success' => __('Reservation submitted successfully!', 'power-reservations'),
-                'reservation_error' => __('Error submitting reservation. Please try again.', 'power-reservations'),
-                'required_fields' => __('Please fill in all required fields.', 'power-reservations'),
-                'invalid_email' => __('Please enter a valid email address.', 'power-reservations')
-            )
-        ));
-    }
-    
-    /**
-     * Enqueue admin scripts
-     */
-    public function enqueue_admin_scripts($hook) {
-        // Load on all our plugin pages
-        if (strpos($hook, 'power-reservations') !== false || 
-            strpos($hook, 'pr-settings') !== false ||
-            strpos($hook, 'pr-email-templates') !== false ||
-            strpos($hook, 'pr-form-builder') !== false ||
-            strpos($hook, 'pr-form-styling') !== false) {
-            
-            wp_enqueue_style('pr-admin', PR_PLUGIN_URL . 'assets/admin.css', array(), PR_VERSION);
-            
-            // Enqueue jQuery for all admin pages (required for inline scripts)
-            wp_enqueue_script('jquery');
-            
-            // Enqueue jQuery UI for drag and drop on form builder page
-            if (strpos($hook, 'pr-form-builder') !== false) {
-                wp_enqueue_script('jquery-ui-sortable');
-                wp_enqueue_script('jquery-ui-draggable');
-                wp_enqueue_script('jquery-ui-droppable');
-            }
-            
-            // Minimal inline CSS for critical WordPress admin overrides only
-            wp_add_inline_style('pr-admin', '
-                /* Ensure our wrapper classes take priority */
-                .wrap.pr-admin-page { max-width: none !important; margin: 0 !important; padding: 0 !important; }
-                .wrap.pr-admin-page > h1 { display: none !important; }
+            // Live preview updates
+            $(".pr-color-input, .pr-number-input").on("input change", function() {
+                var primaryColor = $("input[name=pr_primary_color]").val();
+                var borderRadius = $("input[name=pr_border_radius]").val() + "px";
+                var fontSize = $("input[name=pr_font_size]").val() + "px";
                 
-                /* Form Builder Enhancements */
-                .pr-field-placeholder {
-                    height: 80px;
-                    background: #f0f0f1;
-                    border: 2px dashed #c3c4c7;
-                    border-radius: 8px;
-                    margin: 10px 0;
-                }
-                
-                .pr-field-config.ui-sortable-helper {
-                    transform: rotate(2deg);
-                    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-                    border: 2px solid var(--pr-primary);
-                }
-                
-                .pr-drag-handle {
-                    cursor: grab;
-                    color: #8c8f94;
-                    transition: color 0.2s;
-                }
-                
-                .pr-drag-handle:hover {
-                    color: var(--pr-primary);
-                    cursor: grabbing;
-                }
-                
-                /* Toast notifications */
-                .pr-toast {
-                    position: fixed;
-                    top: 32px;
-                    right: 20px;
-                    background: #00a32a;
-                    color: white;
-                    padding: 12px 20px;
-                    border-radius: 4px;
-                    z-index: 999999;
-                    font-weight: 500;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-                    display: none;
-                }
-                
-                /* Form preview styles - Compact and auto-size to fit without scrolling */
-                .pr-form-preview-container {
-                    background: #f9f9f9;
-                    padding: 8px;
-                    border-radius: 6px;
-                    border: 1px solid #ddd;
-                    box-sizing: border-box;
-                    overflow: visible;
-                }
-                
-                /* Elementor Widget Styling for Admin Preview - Exact Match */
-                .pr-form-preview-container .pr-elementor-widget {
-                    max-width: 100%;
-                    margin: 0;
-                    font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;
-                    line-height: 1.4;
-                }
-                
-                /* Override any conflicting pr-form-row styles in preview */
-                .pr-form-preview-container .pr-form-row.pr-elementor-field {
-                    display: flex !important;
-                    flex-direction: column !important;
-                    gap: 0 !important;
-                    align-items: stretch !important;
-                }
-                
-                /* Specific overrides for pr-preview-custom styles */
-                .pr-form-preview-container.pr-preview-custom .pr-elementor-field,
-                .pr-form-preview-container.pr-preview-custom .pr-form-row.pr-elementor-field {
-                    display: flex !important;
-                    flex-direction: column !important;
-                    gap: 0 !important;
-                    margin-bottom: 6px !important;
-                }
-                
-                .pr-form-preview-container.pr-preview-custom .pr-elementor-field label,
-                .pr-form-preview-container.pr-preview-custom .pr-form-row.pr-elementor-field label {
-                    display: block !important;
-                    margin-bottom: 3px !important;
-                    font-size: 12px !important;
-                    order: 1 !important;
-                    font-weight: 600 !important;
-                }
-                
-                .pr-form-preview-container.pr-preview-custom input,
-                .pr-form-preview-container.pr-preview-custom select,
-                .pr-form-preview-container.pr-preview-custom textarea {
-                    padding: 5px 8px !important;
-                    font-size: 12px !important;
-                    border: 1px solid #ddd !important;
-                    border-radius: 3px !important;
-                    order: 2 !important;
-                    width: 100% !important;
-                    box-sizing: border-box !important;
-                }
-                
-                .pr-form-preview-container.pr-preview-custom textarea {
-                    min-height: 35px !important;
-                    resize: vertical !important;
-                }
-                
-                .pr-form-preview-container.pr-preview-custom .pr-submit-btn {
-                    padding: 6px 12px !important;
-                    font-size: 12px !important;
-                    margin-top: 3px !important;
-                }
-                
-                .pr-form-preview-container .pr-elementor-title {
-                    text-align: center;
-                    color: #1d2327;
-                    margin-bottom: 8px;
-                    font-size: 16px;
-                    font-weight: 600;
-                }
-                
-                .pr-form-preview-container .pr-elementor-form {
-                    background: #ffffff;
-                    padding: 8px;
-                    border-radius: 4px;
-                    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
-                    border: 1px solid #e0e4e7;
-                    margin: 0;
-                }
-                
-                .pr-form-preview-container .pr-elementor-field {
-                    margin-bottom: 6px;
-                    display: flex !important;
-                    flex-direction: column !important;
-                    gap: 0 !important;
-                }
-                
-                .pr-form-preview-container .pr-elementor-field label {
-                    display: block !important;
-                    margin-bottom: 3px !important;
-                    font-weight: 600;
-                    color: #1d2327;
-                    font-size: 12px !important;
-                    width: 100% !important;
-                    order: 1 !important;
-                }
-                
-                .pr-form-preview-container .pr-elementor-form input[type=\"text\"],
-                .pr-form-preview-container .pr-elementor-form input[type=\"email\"], 
-                .pr-form-preview-container .pr-elementor-form input[type=\"tel\"],
-                .pr-form-preview-container .pr-elementor-form input[type=\"date\"],
-                .pr-form-preview-container .pr-elementor-form select,
-                .pr-form-preview-container .pr-elementor-form textarea {
-                    width: 100% !important;
-                    padding: 5px 8px !important;
-                    border: 1px solid #ddd !important;
-                    border-radius: 3px !important;
-                    font-size: 12px !important;
-                    transition: all 0.3s ease;
-                    background-color: #ffffff;
-                    box-sizing: border-box;
-                    font-family: inherit;
-                    order: 2 !important;
-                    margin: 0 !important;
-                }
-                
-                .pr-form-preview-container .pr-elementor-form input:focus,
-                .pr-form-preview-container .pr-elementor-form select:focus,
-                .pr-form-preview-container .pr-elementor-form textarea:focus {
-                    outline: none;
-                    border-color: #007cba;
-                    box-shadow: 0 0 0 1px rgba(0, 124, 186, 0.1);
-                }
-                
-                .pr-form-preview-container .pr-elementor-form textarea {
-                    resize: vertical;
-                    min-height: 35px !important;
-                }
-                
-                .pr-form-preview-container .pr-submit-btn {
-                    display: inline-block;
-                    width: 100%;
-                    padding: 6px 12px !important;
-                    border: none;
-                    border-radius: 3px;
-                    font-size: 12px !important;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    text-align: center;
-                    box-sizing: border-box;
-                    background: linear-gradient(135deg, #007cba 0%, #005a87 100%);
-                    color: white;
-                    margin-top: 3px;
-                }
-                
-                .pr-form-preview-container .pr-submit-btn:hover {
-                    background: linear-gradient(135deg, #005a87 0%, #004066 100%);
-                    transform: translateY(-1px);
-                    box-shadow: 0 4px 15px rgba(0, 124, 186, 0.3);
-                }
-                
-                /* Responsive Design for Preview */
-                @media (max-width: 768px) {
-                    .pr-form-preview-container .pr-elementor-form {
-                        margin: 10px;
-                        padding: 20px;
-                    }
-                    
-                    .pr-form-preview-container .pr-elementor-title {
-                        font-size: 20px;
-                        margin-bottom: 20px;
-                    }
-                }
-                
-                .pr-styling-option {
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    border: 2px solid transparent;
-                }
-                
-                .pr-styling-option:hover {
-                    border-color: var(--pr-primary);
-                    transform: translateY(-2px);
-                }
-                
-                .pr-styling-option.active {
-                    border-color: var(--pr-primary);
-                    background: rgba(102, 126, 234, 0.05);
-                }
-                
-                /* Toggle Switch CSS */
-                .pr-field-toggle {
-                    position: relative;
-                    display: inline-block;
-                    width: 44px;
-                    height: 24px;
-                    cursor: pointer;
-                    user-select: none;
-                }
-                
-                .pr-field-toggle input[type="checkbox"] {
-                    position: absolute;
-                    opacity: 0;
-                    cursor: pointer;
-                    height: 0;
-                    width: 0;
-                }
-                
-                .pr-toggle-slider {
-                    position: absolute;
-                    cursor: pointer;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background-color: #ccc;
-                    transition: all 0.3s ease;
-                    border-radius: 24px;
-                    border: 2px solid #ccc;
-                }
-                
-                .pr-toggle-slider:before {
-                    position: absolute;
-                    content: "";
-                    height: 16px;
-                    width: 16px;
-                    left: 2px;
-                    bottom: 2px;
-                    background-color: white;
-                    transition: all 0.3s ease;
-                    border-radius: 50%;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                }
-                
-                .pr-field-toggle input:checked + .pr-toggle-slider {
-                    background-color: #007cba;
-                    border-color: #007cba;
-                }
-                
-                .pr-field-toggle input:checked + .pr-toggle-slider:before {
-                    transform: translateX(20px);
-                }
-                
-                .pr-field-toggle:hover .pr-toggle-slider {
-                    box-shadow: 0 0 6px rgba(0,124,186,0.3);
-                }
-                
-                .pr-field-toggle input:focus + .pr-toggle-slider {
-                    box-shadow: 0 0 8px rgba(0,124,186,0.5);
-                }
-                
-                /* Field config visual states */
-                .pr-field-config.pr-field-disabled {
-                    opacity: 0.6;
-                    background-color: #f8f8f8;
-                }
-                
-                .pr-field-config.pr-field-enabled {
-                    opacity: 1;
-                    background-color: white;
-                }
-                
-                .pr-field-config {
-                    transition: opacity 0.3s ease, background-color 0.3s ease;
-                }
-            ');
-            
-            wp_add_inline_script('jquery', '
-                jQuery(document).ready(function($) {
-                    // Notification close functionality
-                    $(".pr-notification-close").on("click", function() {
-                        $(this).parent().fadeOut(300);
-                    });
-                    
-                    // Copy shortcode functionality
-                    $(".pr-copy-btn").on("click", function(e) {
-                        e.preventDefault();
-                        var copyText = $(this).data("copy");
-                        if (navigator.clipboard) {
-                            navigator.clipboard.writeText(copyText).then(function() {
-                                showToast("Shortcode copied to clipboard!");
-                            });
-                        } else {
-                            // Fallback for older browsers
-                            var textArea = document.createElement("textarea");
-                            textArea.value = copyText;
-                            document.body.appendChild(textArea);
-                            textArea.select();
-                            document.execCommand("copy");
-                            document.body.removeChild(textArea);
-                            showToast("Shortcode copied to clipboard!");
-                        }
-                    });
-                    
-                    // Enhanced Form Builder Functionality
-                    if ($("#pr-sortable-fields").length) {
-                        // Initialize sortable with enhanced options
-                        $("#pr-sortable-fields").sortable({
-                            handle: ".pr-drag-handle",
-                            placeholder: "pr-field-placeholder",
-                            opacity: 0.8,
-                            cursor: "grabbing",
-                            tolerance: "pointer",
-                            start: function(e, ui) {
-                                ui.placeholder.height(ui.item.height());
-                                showToast("Drag to reorder fields");
-                            },
-                            stop: function(e, ui) {
-                                showToast("Field order updated!");
-                                updateFieldOrder();
-                                updateFormPreview();
-                            }
-                        }).disableSelection();
-                        
-                        // Function to update field order
-                        function updateFieldOrder() {
-                            var order = [];
-                            $("#pr-sortable-fields .pr-field-config").each(function() {
-                                order.push($(this).data("field"));
-                            });
-                            $("#field_order").val(order.join(","));
-                        }
-                        
-                        // Real-time preview updates
-                        $(document).on("change keyup", ".pr-field-config input, .pr-field-config select, .pr-field-config textarea", function() {
-                            setTimeout(updateFormPreview, 300);
-                        });
-                        
-                        // Initial form preview update
-                        setTimeout(updateFormPreview, 500);
-                        
-                        // Enhanced styling mode selection
-                        $(".pr-styling-option").on("click", function() {
-                            var mode = $(this).find("input[type=radio]").val();
-                            selectStylingMode(mode);
-                            updateFormPreviewStyling(mode);
-                        });
-                        
-                        // Color input change handlers for live preview
-                        $("#primary_color, #background_color, #text_color").on("change", function() {
-                            var currentMode = $("input[name=\'styling_mode\']:checked").val();
-                            if (currentMode === "custom") {
-                                updateFormPreviewStyling("custom");
-                            }
-                        });
-                        
-                        // Initialize preview on page load
-                        setTimeout(function() {
-                            var currentMode = $("input[name=\'styling_mode\']:checked").val() || "custom";
-                            updateFormPreviewStyling(currentMode);
-                        }, 500);
-                    }
-                    
-                    // Form styling real-time preview
-                    if ($(".pr-color-input").length) {
-                        $(".pr-color-input").on("change", function() {
-                            updateFormStyling();
-                        });
-                    }
-                    
-                    // Toast notification function
-                    function showToast(message) {
-                        var toast = $("<div class=\"pr-toast\">" + message + "</div>");
-                        $("body").append(toast);
-                        toast.fadeIn(300);
-                        setTimeout(function() {
-                            toast.fadeOut(300, function() {
-                                toast.remove();
-                            });
-                        }, 3000);
-                    }
-                    
-                    // Update form preview function
-                    function updateFormPreview() {
-                        // This would normally trigger an AJAX call to refresh the preview
-                        // For now, we\'ll just show a visual indicator
-                        var preview = $("#pr-live-form-preview");
-                        if (preview.length) {
-                            preview.addClass("pr-updating");
-                            setTimeout(function() {
-                                preview.removeClass("pr-updating");
-                            }, 500);
-                        }
-                    }
-                    
-                    // Update form preview styling based on mode
-                    function updateFormPreviewStyling(mode) {
-                        var preview = $("#pr-live-form-preview");
-                        if (!preview.length) return;
-                        
-                        // Remove existing mode classes
-                        preview.removeClass("pr-preview-theme pr-preview-custom pr-preview-minimal");
-                        
-                        // Apply new mode class and styles
-                        switch(mode) {
-                            case "theme":
-                                preview.addClass("pr-preview-theme");
-                                applyThemePreviewStyles(preview);
-                                break;
-                            case "minimal":
-                                preview.addClass("pr-preview-minimal");
-                                applyMinimalPreviewStyles(preview);
-                                break;
-                            case "custom":
-                            default:
-                                preview.addClass("pr-preview-custom");
-                                applyCustomPreviewStyles(preview);
-                                break;
-                        }
-                        
-                        showToast("Preview updated for " + mode + " styling mode");
-                    }
-                    
-                    // Apply theme preview styles
-                    function applyThemePreviewStyles(preview) {
-                        var themeStyles = `
-                            .pr-preview-theme .pr-form {
-                                background: var(--wp-background-color, #fff);
-                                padding: 30px;
-                                border-radius: 12px;
-                                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-                                border: 1px solid #e0e4e7;
-                                font-family: inherit;
-                                color: inherit;
-                            }
-                            .pr-preview-theme .pr-submit-btn {
-                                background: var(--wp-admin-theme-color, #007cba);
-                                color: white;
-                                padding: 14px 24px;
-                                border: none;
-                                border-radius: 8px;
-                                font-size: 16px;
-                                font-weight: 600;
-                                width: 100%;
-                                cursor: pointer;
-                                transition: all 0.3s ease;
-                            }
-                            .pr-preview-theme input, .pr-preview-theme select, .pr-preview-theme textarea {
-                                width: 100%;
-                                padding: 12px 16px;
-                                border: 2px solid #ddd;
-                                border-radius: 8px;
-                                font-size: 16px;
-                                transition: all 0.3s ease;
-                                box-sizing: border-box;
-                            }
-                            .pr-preview-theme input:focus, .pr-preview-theme select:focus, .pr-preview-theme textarea:focus {
-                                outline: none;
-                                border-color: var(--wp-admin-theme-color, #007cba);
-                                box-shadow: 0 0 0 3px rgba(0, 124, 186, 0.1);
-                            }
-                        `;
-                        updatePreviewStyles("theme", themeStyles);
-                    }
-                    
-                    // Apply minimal preview styles
-                    function applyMinimalPreviewStyles(preview) {
-                        var minimalStyles = `
-                            .pr-preview-minimal .pr-form {
-                                background: #fff;
-                                padding: 20px;
-                                border: 1px solid #ddd;
-                                border-radius: 8px;
-                                box-shadow: none;
-                            }
-                            .pr-preview-minimal .pr-submit-btn {
-                                background: #0073aa;
-                                color: white;
-                                padding: 12px 20px;
-                                border: none;
-                                border-radius: 4px;
-                                font-size: 16px;
-                                width: 100%;
-                                cursor: pointer;
-                            }
-                            .pr-preview-minimal input, .pr-preview-minimal select, .pr-preview-minimal textarea {
-                                width: 100%;
-                                padding: 10px 12px;
-                                border: 1px solid #ddd;
-                                border-radius: 4px;
-                                font-size: 14px;
-                                box-sizing: border-box;
-                            }
-                            .pr-preview-minimal input:focus, .pr-preview-minimal select:focus, .pr-preview-minimal textarea:focus {
-                                outline: none;
-                                border-color: #0073aa;
-                            }
-                        `;
-                        updatePreviewStyles("minimal", minimalStyles);
-                    }
-                    
-                    // Apply custom preview styles
-                    function applyCustomPreviewStyles(preview) {
-                        var primaryColor = $("#primary_color").val() || "#007cba";
-                        var backgroundColor = $("#background_color").val() || "#ffffff";
-                        var textColor = $("#text_color").val() || "#1d2327";
-                        
-                        var customStyles = `
-                            .pr-preview-custom .pr-form {
-                                background-color: ${backgroundColor};
-                                color: ${textColor};
-                                padding: 30px;
-                                border-radius: 12px;
-                                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-                                border: 1px solid #e0e4e7;
-                            }
-                            .pr-preview-custom .pr-submit-btn {
-                                background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%);
-                                color: white;
-                                padding: 14px 24px;
-                                border: none;
-                                border-radius: 8px;
-                                font-size: 16px;
-                                font-weight: 600;
-                                width: 100%;
-                                cursor: pointer;
-                                transition: all 0.3s ease;
-                            }
-                            .pr-preview-custom .pr-submit-btn:hover {
-                                transform: translateY(-2px);
-                                box-shadow: 0 8px 25px ${primaryColor}40;
-                            }
-                            .pr-preview-custom input, .pr-preview-custom select, .pr-preview-custom textarea {
-                                width: 100%;
-                                padding: 12px 16px;
-                                border: 2px solid #ddd;
-                                border-radius: 8px;
-                                font-size: 16px;
-                                transition: all 0.3s ease;
-                                background-color: #ffffff;
-                                box-sizing: border-box;
-                            }
-                            .pr-preview-custom input:focus, .pr-preview-custom select:focus, .pr-preview-custom textarea:focus {
-                                outline: none;
-                                border-color: ${primaryColor};
-                                box-shadow: 0 0 0 3px ${primaryColor}25;
-                            }
-                            .pr-preview-custom .pr-form-row {
-                                margin-bottom: 20px;
-                            }
-                            .pr-preview-custom .pr-form-row label {
-                                display: block;
-                                margin-bottom: 8px;
-                                font-weight: 600;
-                                color: ${textColor};
-                                font-size: 14px;
-                            }
-                        `;
-                        updatePreviewStyles("custom", customStyles);
-                    }
-                    
-                    // Helper function to update preview styles
-                    function updatePreviewStyles(mode, styles) {
-                        // Remove existing preview styles
-                        $("#pr-preview-styles-" + mode).remove();
-                        
-                        // Add new styles
-                        $("head").append(`<style id="pr-preview-styles-${mode}">${styles}</style>`);
-                    }
-                    
-                    // Update form styling function
-                    function updateFormStyling() {
-                        var primaryColor = $("#primary_color").val();
-                        var backgroundColor = $("#background_color").val();
-                        var textColor = $("#text_color").val();
-                        
-                        // Apply live preview styles
-                        var previewStyles = `
-                            .pr-form-preview .pr-form-control {
-                                border-color: ${primaryColor}40;
-                                background-color: ${backgroundColor};
-                                color: ${textColor};
-                            }
-                            .pr-form-preview .pr-btn-primary {
-                                background-color: ${primaryColor};
-                            }
-                        `;
-                        
-                        $("#pr-live-style-preview").remove();
-                        $("head").append(`<style id="pr-live-style-preview">${previewStyles}</style>`);
-                    }
-                    
-                    // Enhanced styling mode selection
-                    window.selectStylingMode = function(mode) {
-                        document.getElementById("styling_" + mode).checked = true;
-                        document.querySelectorAll(".pr-styling-option").forEach(el => el.classList.remove("active"));
-                        event.currentTarget.classList.add("active");
-                        
-                        // Update live preview with new styling mode
-                        updateFormPreviewStyling(mode);
-                        
-                        var modeNames = {
-                            "theme": "Current Theme",
-                            "custom": "Custom Styling", 
-                            "minimal": "Minimal Style"
-                        };
-                        showToast("Style mode: " + modeNames[mode]);
-                    };
-                    
-                    // Add smooth scrolling for anchor links
-                    $("a[href^=\"#\"]").on("click", function(e) {
-                        var target = $($(this).attr("href"));
-                        if (target.length) {
-                            e.preventDefault();
-                            $("html, body").animate({
-                                scrollTop: target.offset().top - 100
-                            }, 300);
-                        }
-                    });
-                    
-                    // Auto-hide notifications after 5 seconds
-                    $(".pr-notification").each(function() {
-                        var notification = $(this);
-                        setTimeout(function() {
-                            notification.fadeOut(300);
-                        }, 5000);
-                    });
-                    
-                    // Initialize tooltips and enhanced UX
-                    $("[title]").each(function() {
-                        $(this).tooltip();
-                    });
-                    
-                    // Time slot management functionality
-                    $("#pr-add-time-slot").on("click", function() {
-                        var container = $("#pr-time-slots");
-                        var newSlot = `
-                            <div class="pr-time-slot-item">
-                                <input type="text" name="pr_time_slots[]" value="" placeholder="${prL10n.timeSlotPlaceholder || "e.g. 6:00 PM"}" class="pr-input pr-time-input" />
-                                <button type="button" class="pr-btn pr-btn-sm pr-btn-danger pr-remove-time-slot">
-                                    <span class="dashicons dashicons-no-alt"></span>
-                                </button>
-                            </div>
-                        `;
-                        container.append(newSlot);
-                        showToast("Time slot added");
-                    });
-                    
-                    // Remove time slot functionality
-                    $(document).on("click", ".pr-remove-time-slot", function() {
-                        if ($("#pr-time-slots .pr-time-slot-item").length > 1) {
-                            $(this).closest(".pr-time-slot-item").fadeOut(300, function() {
-                                $(this).remove();
-                                showToast("Time slot removed");
-                            });
-                        } else {
-                            showToast("At least one time slot is required", "error");
-                        }
-                    });
-                    
-                    // Simple toggle field functionality
-                    $(document).on("change", "input[data-field-key]", function() {
-                        var fieldKey = $(this).data("field-key");
-                        var isChecked = $(this).is(":checked");
-                        var fieldConfig = $(".pr-field-config[data-field=\"" + fieldKey + "\"]");
-                        
-                        // Update visual state
-                        if (isChecked) {
-                            fieldConfig.removeClass("pr-field-disabled").addClass("pr-field-enabled");
-                            showToast("Field enabled: " + fieldKey.replace(/_/g, " "));
-                        } else {
-                            fieldConfig.removeClass("pr-field-enabled").addClass("pr-field-disabled");
-                            showToast("Field disabled: " + fieldKey.replace(/_/g, " "));
-                        }
-                        
-                        // Update form preview
-                        updateFormPreview();
-                    });
-                    
-                    // Function to update form preview based on current field states
-                    function updateFormPreview() {
-                        var preview = $("#pr-live-form-preview");
-                        if (!preview.length) return;
-                        
-                        var enabledFields = [];
-                        var fieldOrder = [];
-                        
-                        // Get current field order and enabled state
-                        $("#pr-sortable-fields .pr-field-config").each(function() {
-                            var fieldKey = $(this).data("field");
-                            var isEnabled = $(this).find("input[data-field-key]").is(":checked");
-                            
-                            fieldOrder.push(fieldKey);
-                            if (isEnabled) {
-                                enabledFields.push(fieldKey);
-                            }
-                        });
-                        
-                        // Build new form HTML
-                        var formHtml = buildFormPreviewHTML(enabledFields, fieldOrder);
-                        
-                        // Update preview content
-                        preview.html(formHtml);
-                        
-                        // Reapply current styling mode
-                        var currentMode = $("input[name=styling_mode]:checked").val() || "custom";
-                        updateFormPreviewStyling(currentMode);
-                    }
-                    
-                    // Function to build form preview HTML - Match Elementor Widget Structure
-                    function buildFormPreviewHTML(enabledFields, fieldOrder) {
-                        var html = "<div class=\\"pr-elementor-widget pr-elementor-style-default\\">";
-                        html += "<h3 class=\\"pr-elementor-title\\">Make a Reservation</h3>";
-                        html += "<div class=\\"pr-elementor-form\\">";
-                        html += "<form class=\\"pr-form pr-elementor-form-default\\">";
-                        
-                        // Add fields in order, but only if enabled
-                        for (var i = 0; i < fieldOrder.length; i++) {
-                            var fieldKey = fieldOrder[i];
-                            if (enabledFields.indexOf(fieldKey) !== -1) {
-                                html += buildFieldHTML(fieldKey);
-                            }
-                        }
-                        
-                        html += "<div class=\\"pr-form-row pr-elementor-field\\"><button type=\\"submit\\" class=\\"pr-submit-btn\\">Make Reservation</button></div>";
-                        html += "</form>";
-                        html += "</div>";
-                        html += "</div>";
-                        
-                        return html;
-                    }
-                    
-                    // Function to build individual field HTML - Match Elementor Field Structure
-                    function buildFieldHTML(fieldKey) {
-                        var fieldConfig = $(".pr-field-config[data-field=\\"" + fieldKey + "\\"]");
-                        var label = fieldConfig.find("input[name=\\"" + fieldKey + "_label\\"]").val() || getDefaultLabel(fieldKey);
-                        var placeholder = fieldConfig.find("input[name=\\"" + fieldKey + "_placeholder\\"]").val() || getDefaultPlaceholder(fieldKey);
-                        var isRequired = fieldConfig.find("input[name=\\"" + fieldKey + "_required\\"]").is(":checked");
-                        var requiredStar = isRequired ? " *" : "";
-                        var requiredAttr = isRequired ? " required" : "";
-                        
-                        var html = "<div class=\\"pr-form-row pr-elementor-field\\">";
-                        html += "<label>" + label + requiredStar + "</label>";
-                        
-                        switch(fieldKey) {
-                            case "name":
-                                html += "<input type=\\"text\\" placeholder=\\"" + placeholder + "\\"" + requiredAttr + ">";
-                                break;
-                            case "email":
-                                html += "<input type=\\"email\\" placeholder=\\"" + placeholder + "\\"" + requiredAttr + ">";
-                                break;
-                            case "phone":
-                                html += "<input type=\\"tel\\" placeholder=\\"" + placeholder + "\\"" + requiredAttr + ">";
-                                break;
-                            case "date":
-                                html += "<input type=\\"date\\"" + requiredAttr + ">";
-                                break;
-                            case "time":
-                                html += "<select" + requiredAttr + "><option value=\\"\\">Select a time</option><option value=\\"6:00 PM\\">6:00 PM</option><option value=\\"6:30 PM\\">6:30 PM</option><option value=\\"7:00 PM\\">7:00 PM</option><option value=\\"7:30 PM\\">7:30 PM</option><option value=\\"8:00 PM\\">8:00 PM</option><option value=\\"8:30 PM\\">8:30 PM</option><option value=\\"9:00 PM\\">9:00 PM</option><option value=\\"9:30 PM\\">9:30 PM</option></select>";
-                                break;
-                            case "party_size":
-                                html += "<select" + requiredAttr + "><option value=\\"\\">Select party size</option><option value=\\"1\\">1 person</option><option value=\\"2\\">2 people</option><option value=\\"3\\">3 people</option><option value=\\"4\\">4 people</option><option value=\\"5\\">5 people</option><option value=\\"6\\">6 people</option><option value=\\"7\\">7 people</option><option value=\\"8\\">8 people</option></select>";
-                                break;
-                            case "special_requests":
-                                html += "<textarea placeholder=\\"" + placeholder + "\\"" + requiredAttr + "></textarea>";
-                                break;
-                        }
-                        
-                        html += "</div>";
-                        return html;
-                    }
-                    
-                    // Helper functions for default values
-                    function getDefaultLabel(fieldKey) {
-                        var labels = {
-                            "name": "Name",
-                            "email": "Email",
-                            "phone": "Phone",
-                            "date": "Date",
-                            "time": "Time",
-                            "party_size": "Party Size",
-                            "special_requests": "Special Requests"
-                        };
-                        return labels[fieldKey] || fieldKey;
-                    }
-                    
-                    function getDefaultPlaceholder(fieldKey) {
-                        var placeholders = {
-                            "name": "Your name",
-                            "email": "Your email",
-                            "phone": "Your phone number",
-                            "special_requests": "Any special requirements or requests..."
-                        };
-                        return placeholders[fieldKey] || "";
-                    }
+                $("#pr-form-preview-container .pr-input").css({
+                    "border-radius": borderRadius,
+                    "font-size": fontSize
                 });
-            ');
+                $("#pr-form-preview-container .pr-label").css({
+                    "color": $("input[name=pr_label_color]").val()
+                });
+                $("#pr-form-preview-container .pr-input").css({
+                    "border-color": $("input[name=pr_input_border_color]").val()
+                });
+                $("#pr-form-preview-container .pr-submit-btn").css({
+                    "background": "linear-gradient(135deg, " + primaryColor + ", " + $("input[name=pr_secondary_color]").val() + ")",
+                    "border-radius": borderRadius
+                });
+            });
+        });
+        </script>';
+        
+        echo '<style>
+        .pr-two-column-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2em;
+            margin-top: 2em;
         }
-    }
-    
-    /* ========================================
-       FRONTEND SHORTCODES & FORMS
-       ======================================== */
-    
-    /**
-     * Main reservation form shortcode
-     * 
-     * Usage: [power_reservations style="default"]
-     * 
-     * @param array $atts Shortcode attributes
-     * @return string HTML output
-     */
-    public function reservation_shortcode($atts) {
-        $atts = shortcode_atts(array('style' => 'default'), $atts);
-        
-        ob_start();
-        $this->render_reservation_form();
-        return ob_get_clean();
-    }
-    
-    /**
-     * Render reservation form
-     */
-    private function render_reservation_form() {
-        $time_slots = get_option('pr_time_slots', array(
-            '6:00 PM', '6:30 PM', '7:00 PM', '7:30 PM', '8:00 PM', '8:30 PM', '9:00 PM', '9:30 PM'
-        ));
-        $max_party_size = get_option('pr_max_party_size', 8);
-        $booking_window = get_option('pr_booking_window', 30);
-        
-        // Get field configuration
-        $available_fields = array(
-            'name' => array(
-                'label' => __('Name', 'power-reservations'),
-                'type' => 'text',
-                'required_default' => true
-            ),
-            'email' => array(
-                'label' => __('Email', 'power-reservations'),
-                'type' => 'email',
-                'required_default' => true
-            ),
-            'phone' => array(
-                'label' => __('Phone', 'power-reservations'),
-                'type' => 'tel',
-                'required_default' => false
-            ),
-            'date' => array(
-                'label' => __('Date', 'power-reservations'),
-                'type' => 'date',
-                'required_default' => true
-            ),
-            'time' => array(
-                'label' => __('Time', 'power-reservations'),
-                'type' => 'select',
-                'required_default' => true
-            ),
-            'party_size' => array(
-                'label' => __('Party Size', 'power-reservations'),
-                'type' => 'select',
-                'required_default' => true
-            ),
-            'special_requests' => array(
-                'label' => __('Special Requests', 'power-reservations'),
-                'type' => 'textarea',
-                'required_default' => false
-            )
-        );
-        
-        $current_fields = get_option('pr_form_fields', array_keys($available_fields));
-        $field_order = get_option('pr_form_field_order', array_keys($available_fields));
-        $field_settings = get_option('pr_form_field_settings', array());
-        
-        $min_date = date('Y-m-d', strtotime('+1 day'));
-        $max_date = date('Y-m-d', strtotime("+{$booking_window} days"));
-        
-        echo '<div id="pr-reservation-form" class="pr-reservation-wrapper">';
-        echo '<h3>' . __('Make a Reservation', 'power-reservations') . '</h3>';
-        echo '<form id="pr-form" class="pr-form">';
-        wp_nonce_field('pr_nonce', 'pr_nonce');
-        
-        // Render fields based on configuration
-        foreach ($field_order as $field_key) {
-            if (!in_array($field_key, $current_fields) || !isset($available_fields[$field_key])) {
-                continue; // Skip disabled or invalid fields
-            }
-            
-            $field_info = $available_fields[$field_key];
-            $is_required = isset($field_settings[$field_key]['required']) ? $field_settings[$field_key]['required'] : $field_info['required_default'];
-            $custom_label = isset($field_settings[$field_key]['label']) ? $field_settings[$field_key]['label'] : $field_info['label'];
-            $placeholder = isset($field_settings[$field_key]['placeholder']) ? $field_settings[$field_key]['placeholder'] : '';
-            
-            $required_attr = $is_required ? 'required' : '';
-            $required_text = $is_required ? ' *' : '';
-            
-            echo '<div class="pr-form-row">';
-            echo '<label for="pr-' . $field_key . '">' . esc_html($custom_label) . $required_text . '</label>';
-            
-            switch ($field_key) {
-                case 'time':
-                    echo '<select id="pr-time" name="time" ' . $required_attr . '>';
-                    echo '<option value="">' . __('Select a time', 'power-reservations') . '</option>';
-                    foreach ($time_slots as $slot) {
-                        echo '<option value="' . esc_attr($slot) . '">' . esc_html($slot) . '</option>';
-                    }
-                    echo '</select>';
-                    break;
-                    
-                case 'party_size':
-                    echo '<select id="pr-party-size" name="party_size" ' . $required_attr . '>';
-                    echo '<option value="">' . __('Select party size', 'power-reservations') . '</option>';
-                    for ($i = 1; $i <= $max_party_size; $i++) {
-                        echo '<option value="' . $i . '">' . sprintf(_n('%d person', '%d people', $i, 'power-reservations'), $i) . '</option>';
-                    }
-                    echo '</select>';
-                    break;
-                    
-                case 'date':
-                    echo '<input type="date" id="pr-date" name="date" min="' . $min_date . '" max="' . $max_date . '" ' . $required_attr . ' placeholder="' . esc_attr($placeholder) . '">';
-                    break;
-                    
-                case 'special_requests':
-                    echo '<textarea id="pr-special-requests" name="special_requests" rows="3" placeholder="' . esc_attr($placeholder ?: __('Any special requests or dietary restrictions...', 'power-reservations')) . '"></textarea>';
-                    break;
-                    
-                default:
-                    echo '<input type="' . esc_attr($field_info['type']) . '" id="pr-' . $field_key . '" name="' . $field_key . '" ' . $required_attr . ' placeholder="' . esc_attr($placeholder) . '">';
-                    break;
-            }
-            
-            echo '</div>';
+        .pr-color-input {
+            width: 100%;
+            height: 50px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
         }
-        
-        echo '<div class="pr-form-row">';
-        echo '<button type="submit" class="pr-submit-btn">' . __('Make Reservation', 'power-reservations') . '</button>';
-        echo '</div>';
-        
-        echo '<div id="pr-message" class="pr-message" style="display: none;"></div>';
-        echo '</form>';
-        echo '</div>';
+        .pr-number-input {
+            width: 100%;
+            padding: 0.8em;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+        .pr-radio-group {
+            display: flex;
+            gap: 1em;
+            flex-direction: column;
+        }
+        .pr-radio-option {
+            padding: 1em;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .pr-radio-option:has(input:checked) {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        @media (max-width: 1200px) {
+            .pr-two-column-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        </style>';
     }
     
     /**
@@ -3944,6 +2769,7 @@ class PowerReservations {
             
             echo '<div class="pr-reservation-item status-' . esc_attr($reservation->status) . '">';
             echo '<div class="pr-reservation-header">';
+            /* translators: %s: Reservation ID code */
             echo '<h4>' . sprintf(__('Reservation #%s', 'power-reservations'), esc_html($reservation->reservation_id)) . '</h4>';
             echo '<span class="pr-reservation-status">' . esc_html(ucfirst($reservation->status)) . '</span>';
             echo '</div>';
@@ -4153,9 +2979,203 @@ class PowerReservations {
                 array('%d')
             );
             
-            wp_redirect(add_query_arg('pr_message', 'cancelled', remove_query_arg(array('pr_action', 'token'))));
+            // Redirect to the edit page with a success message
+            wp_redirect(home_url('?pr_action=edit&token=' . $token . '&cancelled=1'));
             exit;
         }
+        
+        if ($action === 'edit') {
+            // Render the full page
+            $this->render_reservation_page($reservation, $token);
+            exit;
+        }
+    }
+    
+    /**
+     * Render full reservation management page
+     */
+    private function render_reservation_page($reservation, $token) {
+        // Get site info for header
+        $site_name = get_bloginfo('name');
+        $cancelled = isset($_GET['cancelled']) ? true : false;
+        
+        // Output full HTML page
+        ?><!DOCTYPE html>
+<html <?php language_attributes(); ?>>
+<head>
+    <meta charset="<?php bloginfo('charset'); ?>">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><?php echo esc_html__('Manage Your Reservation', 'power-reservations') . ' - ' . esc_html($site_name); ?></title>
+    <?php wp_head(); ?>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+            background: #f0f0f1;
+            margin: 0;
+            padding: 20px;
+        }
+        .pr-reservation-page {
+            max-width: 800px;
+            margin: 40px auto;
+            background: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .pr-reservation-page h1 {
+            margin: 0 0 30px 0;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #2271b1;
+            color: #1d2327;
+        }
+        .pr-success-message {
+            background: #00a32a;
+            color: #fff;
+            padding: 15px 20px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+        .pr-reservation-details {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .pr-detail-label {
+            font-weight: 600;
+            color: #1d2327;
+        }
+        .pr-detail-value {
+            color: #50575e;
+        }
+        .pr-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .pr-status.pending {
+            background: #f0f6fc;
+            color: #0969da;
+        }
+        .pr-status.confirmed {
+            background: #dafbe1;
+            color: #1a7f37;
+        }
+        .pr-status.cancelled {
+            background: #ffebe9;
+            color: #cf222e;
+        }
+        .pr-actions {
+            padding-top: 30px;
+            border-top: 1px solid #dcdcde;
+            display: flex;
+            gap: 10px;
+        }
+        .pr-button {
+            display: inline-block;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        .pr-button-primary {
+            background: #2271b1;
+            color: #fff;
+        }
+        .pr-button-primary:hover {
+            background: #135e96;
+            color: #fff;
+        }
+        .pr-button-danger {
+            background: #dc3232;
+            color: #fff;
+        }
+        .pr-button-danger:hover {
+            background: #a00;
+            color: #fff;
+        }
+        .pr-back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #2271b1;
+            text-decoration: none;
+        }
+        .pr-back-link:hover {
+            color: #135e96;
+        }
+    </style>
+</head>
+<body class="pr-reservation-management">
+    <div class="pr-reservation-page">
+        <h1><?php esc_html_e('Manage Your Reservation', 'power-reservations'); ?></h1>
+        
+        <?php if ($cancelled): ?>
+        <div class="pr-success-message">
+            <?php esc_html_e('Your reservation has been cancelled successfully.', 'power-reservations'); ?>
+        </div>
+        <?php endif; ?>
+        
+        <div class="pr-reservation-details">
+            <div class="pr-detail-label"><?php esc_html_e('Reservation ID:', 'power-reservations'); ?></div>
+            <div class="pr-detail-value"><?php echo esc_html($reservation->reservation_id); ?></div>
+            
+            <div class="pr-detail-label"><?php esc_html_e('Status:', 'power-reservations'); ?></div>
+            <div class="pr-detail-value">
+                <span class="pr-status <?php echo esc_attr($reservation->status); ?>">
+                    <?php echo esc_html(ucfirst($reservation->status)); ?>
+                </span>
+            </div>
+            
+            <div class="pr-detail-label"><?php esc_html_e('Name:', 'power-reservations'); ?></div>
+            <div class="pr-detail-value"><?php echo esc_html($reservation->name); ?></div>
+            
+            <div class="pr-detail-label"><?php esc_html_e('Email:', 'power-reservations'); ?></div>
+            <div class="pr-detail-value"><?php echo esc_html($reservation->email); ?></div>
+            
+            <div class="pr-detail-label"><?php esc_html_e('Phone:', 'power-reservations'); ?></div>
+            <div class="pr-detail-value"><?php echo esc_html($reservation->phone); ?></div>
+            
+            <div class="pr-detail-label"><?php esc_html_e('Date:', 'power-reservations'); ?></div>
+            <div class="pr-detail-value"><?php echo esc_html(date_i18n(get_option('date_format'), strtotime($reservation->reservation_date))); ?></div>
+            
+            <div class="pr-detail-label"><?php esc_html_e('Time:', 'power-reservations'); ?></div>
+            <div class="pr-detail-value"><?php echo esc_html($reservation->reservation_time); ?></div>
+            
+            <div class="pr-detail-label"><?php esc_html_e('Party Size:', 'power-reservations'); ?></div>
+            <div class="pr-detail-value"><?php echo esc_html($reservation->party_size); ?></div>
+            
+            <?php if (!empty($reservation->special_requests)): ?>
+            <div class="pr-detail-label"><?php esc_html_e('Special Requests:', 'power-reservations'); ?></div>
+            <div class="pr-detail-value"><?php echo esc_html($reservation->special_requests); ?></div>
+            <?php endif; ?>
+            
+            <div class="pr-detail-label"><?php esc_html_e('Created:', 'power-reservations'); ?></div>
+            <div class="pr-detail-value"><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($reservation->created_at))); ?></div>
+        </div>
+        
+        <?php if ($reservation->status !== 'cancelled'): ?>
+        <div class="pr-actions">
+            <a href="<?php echo esc_url(home_url('?pr_action=cancel&token=' . $token)); ?>" 
+               class="pr-button pr-button-danger" 
+               onclick="return confirm('<?php esc_attr_e('Are you sure you want to cancel this reservation?', 'power-reservations'); ?>')">
+                <?php esc_html_e('Cancel Reservation', 'power-reservations'); ?>
+            </a>
+        </div>
+        <?php endif; ?>
+        
+        <a href="<?php echo esc_url(home_url()); ?>" class="pr-back-link">
+            ← <?php esc_html_e('Back to Home', 'power-reservations'); ?>
+        </a>
+    </div>
+    <?php wp_footer(); ?>
+</body>
+</html><?php
     }
     
     /**
@@ -4372,6 +3392,7 @@ class PowerReservations {
         
         foreach ($required_fields as $field) {
             if (empty($_POST[$field])) {
+                /* translators: %s: Field name (e.g., Name, Email, Party size) */
                 $errors[] = sprintf(__('%s is required', 'power-reservations'), ucfirst(str_replace('_', ' ', $field)));
             }
         }
@@ -4380,8 +3401,15 @@ class PowerReservations {
             wp_die(json_encode(['success' => false, 'message' => implode('<br>', $errors)]));
         }
         
+        // Generate unique reservation ID
+        $reservation_id_code = strtoupper(wp_generate_password(12, false));
+        
+        // Generate edit token for customer self-service
+        $edit_token = wp_generate_password(32, false);
+        
         // Sanitize data
         $reservation_data = array(
+            'reservation_id' => $reservation_id_code,
             'name' => sanitize_text_field($_POST['name']),
             'email' => sanitize_email($_POST['email']),
             'phone' => isset($_POST['phone']) ? sanitize_text_field($_POST['phone']) : '',
@@ -4390,6 +3418,7 @@ class PowerReservations {
             'party_size' => intval($_POST['party_size']),
             'special_requests' => isset($_POST['special_requests']) ? sanitize_textarea_field($_POST['special_requests']) : '',
             'status' => 'pending',
+            'edit_token' => $edit_token,
             'created_at' => current_time('mysql')
         );
         
@@ -4400,7 +3429,7 @@ class PowerReservations {
         $result = $wpdb->insert(
             $table_name,
             $reservation_data,
-            array('%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s')
+            array('%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s')
         );
         
         if ($result === false) {
@@ -4421,10 +3450,351 @@ class PowerReservations {
         $this->send_admin_notification_email($reservation_id);
         
         // Success response
+        /* translators: %s: Reservation confirmation code (e.g., A1B2C3D4E5F6) */
         wp_die(json_encode([
-            'success' => true, 
-            'message' => __('Reservation submitted successfully! We will contact you shortly to confirm.', 'power-reservations')
+            'success' => true,
+            'message' => sprintf(
+                __('Reservation submitted successfully! Your confirmation code is: %s. We will contact you shortly to confirm.', 'power-reservations'),
+                $reservation_id_code
+            )
         ]));
+    }
+    
+    /**
+     * Enqueue admin scripts and styles
+     */
+    public function enqueue_admin_scripts($hook) {
+        // Only load on plugin admin pages
+        if (strpos($hook, 'power-reservations') !== false ||
+            strpos($hook, 'pr-settings') !== false ||
+            strpos($hook, 'pr-email-templates') !== false ||
+            strpos($hook, 'pr-form-builder') !== false ||
+            strpos($hook, 'pr-form-styling') !== false) {
+
+            wp_enqueue_style('pr-admin', PR_PLUGIN_URL . 'assets/admin.css', array(), PR_VERSION);
+            
+            // Apply custom styling to admin previews
+            if (get_option('pr_styling_mode', 'custom') === 'custom') {
+                $primary_color = get_option('pr_primary_color', '#667eea');
+                $secondary_color = get_option('pr_secondary_color', '#764ba2');
+                $button_color = get_option('pr_button_color', '#667eea');
+                $input_border_color = get_option('pr_input_border_color', '#ddd');
+                $label_color = get_option('pr_label_color', '#888');
+                $font_size = get_option('pr_font_size', 16);
+                $border_radius = get_option('pr_border_radius', 8);
+                $input_padding = get_option('pr_input_padding', 12);
+                $form_width = get_option('pr_form_width', 600);
+                
+                $custom_css = "
+                    :root {
+                        --pr-primary: {$primary_color};
+                        --pr-secondary: {$secondary_color};
+                    }
+                    .pr-reservation-form-wrapper {
+                        max-width: {$form_width}px;
+                        margin: 0 auto;
+                    }
+                    .pr-reservation-form .pr-label {
+                        display: block;
+                        margin-bottom: 0.5rem;
+                        color: {$label_color};
+                        font-size: {$font_size}px;
+                        font-weight: 500;
+                    }
+                    .pr-reservation-form .pr-input {
+                        width: 100%;
+                        font-size: {$font_size}px;
+                        border-radius: {$border_radius}px;
+                        padding: {$input_padding}px;
+                        border: 2px solid {$input_border_color};
+                    }
+                    .pr-reservation-form .pr-input:focus {
+                        border-color: {$primary_color};
+                        outline: none;
+                    }
+                    .pr-reservation-form .pr-submit-btn {
+                        background: linear-gradient(135deg, {$primary_color}, {$secondary_color});
+                        border-radius: {$border_radius}px;
+                    }
+                ";
+                wp_add_inline_style('pr-admin', $custom_css);
+            }
+            
+            wp_enqueue_script('jquery');
+            wp_enqueue_script('jquery-ui-core');
+            wp_enqueue_script('jquery-ui-sortable');
+            wp_enqueue_style('jquery-ui-css', 'https://code.jquery.com/ui/1.13.2/themes/smoothness/jquery-ui.css', array(), '1.13.2');
+
+            // Form builder GUI
+            if (strpos($hook, 'pr-form-builder') !== false) {
+                wp_enqueue_script('jquery-ui-draggable');
+                wp_enqueue_script('jquery-ui-droppable');
+                wp_enqueue_script('pr-form-builder-gui', PR_PLUGIN_URL . 'assets/form-builder-gui.js', array('jquery', 'jquery-ui-sortable'), PR_VERSION, true);
+            }
+            
+            // Main admin JS
+            wp_enqueue_script('pr-admin-js', PR_PLUGIN_URL . 'assets/admin.js', array('jquery', 'jquery-ui-sortable'), PR_VERSION, true);
+        }
+    }
+    
+    /**
+     * Enqueue frontend scripts and styles
+     */
+    public function enqueue_scripts() {
+        // Enqueue frontend styles and scripts
+        wp_enqueue_style('pr-frontend', PR_PLUGIN_URL . 'assets/frontend.css', array(), PR_VERSION);
+        wp_enqueue_script('pr-frontend', PR_PLUGIN_URL . 'assets/frontend.js', array('jquery'), PR_VERSION, true);
+        
+        // Apply custom styling if mode is custom
+        if (get_option('pr_styling_mode', 'custom') === 'custom') {
+            $primary_color = get_option('pr_primary_color', '#667eea');
+            $secondary_color = get_option('pr_secondary_color', '#764ba2');
+            $button_color = get_option('pr_button_color', '#667eea');
+            $input_border_color = get_option('pr_input_border_color', '#ddd');
+            $label_color = get_option('pr_label_color', '#888');
+            $font_size = get_option('pr_font_size', 16);
+            $border_radius = get_option('pr_border_radius', 8);
+            $input_padding = get_option('pr_input_padding', 12);
+            $form_width = get_option('pr_form_width', 600);
+            
+            $custom_css = "
+                :root {
+                    --pr-primary: {$primary_color};
+                    --pr-secondary: {$secondary_color};
+                }
+                .pr-reservation-form-wrapper {
+                    max-width: {$form_width}px;
+                    margin: 0 auto;
+                }
+                .pr-reservation-form .pr-label {
+                    display: block;
+                    margin-bottom: 0.5rem;
+                    color: {$label_color};
+                    font-size: {$font_size}px;
+                    font-weight: 500;
+                }
+                .pr-reservation-form .pr-input {
+                    width: 100%;
+                    font-size: {$font_size}px;
+                    border-radius: {$border_radius}px;
+                    padding: {$input_padding}px;
+                    border: 2px solid {$input_border_color};
+                }
+                .pr-reservation-form .pr-input:focus {
+                    border-color: {$primary_color};
+                    outline: none;
+                }
+                .pr-reservation-form .pr-submit-btn {
+                    background: linear-gradient(135deg, {$primary_color}, {$secondary_color});
+                    border-radius: {$border_radius}px;
+                }
+            ";
+            wp_add_inline_style('pr-frontend', $custom_css);
+        }
+        
+        // Localize script for AJAX
+        wp_localize_script('pr-frontend', 'pr_ajax', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('pr_ajax_nonce')
+        ));
+    }
+    
+    /**
+     * Reservation form shortcode
+     */
+    public function reservation_shortcode($atts) {
+        // Get form fields from form builder
+        $form_fields = get_option('pr_form_fields', array());
+        
+        // Start output buffering
+        ob_start();
+        
+        // Get styling mode
+        $styling_mode = get_option('pr_styling_mode', 'custom');
+        
+        echo '<div class="pr-reservation-form-wrapper pr-styling-' . esc_attr($styling_mode) . '">';
+        echo '<form id="pr-reservation-form" class="pr-reservation-form" method="post">';
+        echo wp_nonce_field('pr_reservation_nonce', 'pr_nonce', true, false);
+        
+        // Render form fields
+        if (!empty($form_fields)) {
+            foreach ($form_fields as $field) {
+                $field_type = isset($field['type']) ? $field['type'] : 'text';
+                $field_label = isset($field['label']) ? $field['label'] : '';
+                $field_name = isset($field['name']) ? $field['name'] : '';
+                $field_required = isset($field['required']) ? $field['required'] : false;
+                
+                echo '<div class="pr-form-group">';
+                
+                // LABEL FIRST for traditional form layout
+                echo '<label class="pr-label" for="' . esc_attr($field_name) . '">' . esc_html($field_label);
+                if ($field_required) {
+                    echo ' <span class="pr-required">*</span>';
+                }
+                echo '</label>';
+                
+                // INPUT AFTER label
+                if ($field_type === 'textarea') {
+                    echo '<textarea id="' . esc_attr($field_name) . '" name="' . esc_attr($field_name) . '" class="pr-input" ' . ($field_required ? 'required' : '') . '></textarea>';
+                } elseif ($field_type === 'select') {
+                    echo '<select id="' . esc_attr($field_name) . '" name="' . esc_attr($field_name) . '" class="pr-input" ' . ($field_required ? 'required' : '') . '>';
+                    echo '<option value="">Select...</option>';
+                    if (isset($field['options']) && is_array($field['options'])) {
+                        foreach ($field['options'] as $option) {
+                            echo '<option value="' . esc_attr($option) . '">' . esc_html($option) . '</option>';
+                        }
+                    }
+                    echo '</select>';
+                } else {
+                    echo '<input type="' . esc_attr($field_type) . '" id="' . esc_attr($field_name) . '" name="' . esc_attr($field_name) . '" class="pr-input" ' . ($field_required ? 'required' : '') . ' />';
+                }
+                
+                echo '</div>';
+            }
+        } else {
+            // Default form if no custom fields - traditional labels above inputs
+            echo '<div class="pr-form-group">';
+            echo '<label class="pr-label" for="pr_name">Name <span class="pr-required">*</span></label>';
+            echo '<input type="text" id="pr_name" name="pr_name" class="pr-input" required />';
+            echo '</div>';
+            
+            echo '<div class="pr-form-group">';
+            echo '<label class="pr-label" for="pr_email">Email <span class="pr-required">*</span></label>';
+            echo '<input type="email" id="pr_email" name="pr_email" class="pr-input" required />';
+            echo '</div>';
+            
+            echo '<div class="pr-form-group">';
+            echo '<label class="pr-label" for="pr_phone">Phone <span class="pr-required">*</span></label>';
+            echo '<input type="tel" id="pr_phone" name="pr_phone" class="pr-input" required />';
+            echo '</div>';
+            
+            echo '<div class="pr-form-group">';
+            echo '<label class="pr-label" for="pr_date">Date <span class="pr-required">*</span></label>';
+            echo '<input type="date" id="pr_date" name="pr_date" class="pr-input" required />';
+            echo '</div>';
+            
+            echo '<div class="pr-form-group">';
+            echo '<label class="pr-label" for="pr_time">Time <span class="pr-required">*</span></label>';
+            echo '<select id="pr_time" name="pr_time" class="pr-input" required>';
+            echo '<option value="">Select time...</option>';
+            $time_slots = get_option('pr_time_slots', array('6:00 PM', '7:00 PM', '8:00 PM'));
+            foreach ($time_slots as $slot) {
+                echo '<option value="' . esc_attr($slot) . '">' . esc_html($slot) . '</option>';
+            }
+            echo '</select>';
+            echo '</div>';
+            
+            echo '<div class="pr-form-group">';
+            echo '<label class="pr-label" for="pr_party_size">Party Size <span class="pr-required">*</span></label>';
+            echo '<input type="number" id="pr_party_size" name="pr_party_size" class="pr-input" min="1" required />';
+            echo '</div>';
+        }
+        
+        echo '<div class="pr-form-group">';
+        echo '<button type="submit" class="pr-btn pr-btn-primary pr-submit-btn">Make Reservation</button>';
+        echo '</div>';
+        
+        echo '</form>';
+        echo '</div>';
+        
+        return ob_get_clean();
+    }
+    
+    /**
+     * Render a non-functional preview form for the admin Form Builder
+     * This prevents HTML5 validation from interfering with the builder's save button
+     */
+    private function render_preview_form() {
+        // Get form fields from form builder
+        $form_fields = get_option('pr_form_fields', array());
+        
+        // Get styling mode
+        $styling_mode = get_option('pr_styling_mode', 'custom');
+        
+        echo '<div class="pr-reservation-form-wrapper pr-styling-' . esc_attr($styling_mode) . '">';
+        // Use a div instead of form to prevent validation issues
+        echo '<div class="pr-reservation-form pr-preview-only">';
+        
+        // Render form fields
+        if (!empty($form_fields)) {
+            foreach ($form_fields as $field) {
+                $field_type = isset($field['type']) ? $field['type'] : 'text';
+                $field_label = isset($field['label']) ? $field['label'] : '';
+                $field_name = isset($field['name']) ? $field['name'] : '';
+                $field_required = isset($field['required']) ? $field['required'] : false;
+                
+                echo '<div class="pr-form-group">';
+                
+                // LABEL FIRST for traditional form layout
+                echo '<label class="pr-label" for="preview_' . esc_attr($field_name) . '">' . esc_html($field_label);
+                if ($field_required) {
+                    echo ' <span class="pr-required">*</span>';
+                }
+                echo '</label>';
+                
+                // INPUT AFTER label (disabled to prevent interaction)
+                if ($field_type === 'textarea') {
+                    echo '<textarea id="preview_' . esc_attr($field_name) . '" class="pr-input" disabled></textarea>';
+                } elseif ($field_type === 'select') {
+                    echo '<select id="preview_' . esc_attr($field_name) . '" class="pr-input" disabled>';
+                    echo '<option value="">Select...</option>';
+                    if (isset($field['options']) && is_array($field['options'])) {
+                        foreach ($field['options'] as $option) {
+                            echo '<option value="' . esc_attr($option) . '">' . esc_html($option) . '</option>';
+                        }
+                    }
+                    echo '</select>';
+                } else {
+                    echo '<input type="' . esc_attr($field_type) . '" id="preview_' . esc_attr($field_name) . '" class="pr-input" disabled />';
+                }
+                
+                echo '</div>';
+            }
+        } else {
+            // Default form if no custom fields
+            echo '<div class="pr-form-group">';
+            echo '<label class="pr-label" for="preview_pr_name">Name <span class="pr-required">*</span></label>';
+            echo '<input type="text" id="preview_pr_name" class="pr-input" disabled />';
+            echo '</div>';
+            
+            echo '<div class="pr-form-group">';
+            echo '<label class="pr-label" for="preview_pr_email">Email <span class="pr-required">*</span></label>';
+            echo '<input type="email" id="preview_pr_email" class="pr-input" disabled />';
+            echo '</div>';
+            
+            echo '<div class="pr-form-group">';
+            echo '<label class="pr-label" for="preview_pr_phone">Phone <span class="pr-required">*</span></label>';
+            echo '<input type="tel" id="preview_pr_phone" class="pr-input" disabled />';
+            echo '</div>';
+            
+            echo '<div class="pr-form-group">';
+            echo '<label class="pr-label" for="preview_pr_date">Date <span class="pr-required">*</span></label>';
+            echo '<input type="date" id="preview_pr_date" class="pr-input" disabled />';
+            echo '</div>';
+            
+            echo '<div class="pr-form-group">';
+            echo '<label class="pr-label" for="preview_pr_time">Time <span class="pr-required">*</span></label>';
+            echo '<select id="preview_pr_time" class="pr-input" disabled>';
+            echo '<option value="">Select time...</option>';
+            $time_slots = get_option('pr_time_slots', array('6:00 PM', '7:00 PM', '8:00 PM'));
+            foreach ($time_slots as $slot) {
+                echo '<option value="' . esc_attr($slot) . '">' . esc_html($slot) . '</option>';
+            }
+            echo '</select>';
+            echo '</div>';
+            
+            echo '<div class="pr-form-group">';
+            echo '<label class="pr-label" for="preview_pr_party_size">Party Size <span class="pr-required">*</span></label>';
+            echo '<input type="number" id="preview_pr_party_size" class="pr-input" min="1" disabled />';
+            echo '</div>';
+        }
+        
+        echo '<div class="pr-form-group">';
+        echo '<button type="button" class="pr-btn pr-btn-primary pr-submit-btn" disabled>Make Reservation</button>';
+        echo '</div>';
+        
+        echo '</div>'; // .pr-reservation-form
+        echo '</div>'; // .pr-reservation-form-wrapper
     }
     
     /**

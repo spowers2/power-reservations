@@ -18,16 +18,24 @@ jQuery(document).ready(function ($) {
    * Initialize jQuery UI datepicker with restrictions
    */
   function initDatePicker() {
+    var $dateField = $("#pr-date, #pr-elementor-date")
+
+    // Prevent double initialization
+    if ($dateField.hasClass("hasDatepicker")) {
+      return
+    }
+
     var bookingWindow = parseInt(pr_ajax.booking_window) || 30
     var blackoutDates = pr_ajax.blackout_dates || []
     var today = new Date()
     var maxDate = new Date()
     maxDate.setDate(today.getDate() + bookingWindow)
 
-    $("#pr-date").datepicker({
+    $dateField.datepicker({
       dateFormat: "yy-mm-dd",
       minDate: "+1d", // Tomorrow onwards
       maxDate: maxDate,
+      numberOfMonths: 1, // Force single calendar display
       beforeShowDay: function (date) {
         var dateString = $.datepicker.formatDate("yy-mm-dd", date)
 
@@ -51,8 +59,8 @@ jQuery(document).ready(function ($) {
     })
 
     // Hide native date input if datepicker is active
-    if ($("#pr-date").hasClass("hasDatepicker")) {
-      $("#pr-date").attr("type", "text")
+    if ($dateField.hasClass("hasDatepicker")) {
+      $dateField.attr("type", "text")
     }
   }
 
@@ -336,8 +344,8 @@ jQuery(document).ready(function ($) {
        INITIALIZATION
        ======================================== */
 
-  // Initialize datepicker if element exists
-  if ($("#pr-date").length) {
+  // Initialize datepicker if element exists (works for both shortcode and Elementor)
+  if ($("#pr-date").length || $("#pr-elementor-date").length) {
     initDatePicker()
   }
 
@@ -399,28 +407,4 @@ jQuery(document).ready(function ($) {
       }
     })
   })
-
-  /**
-   * Initialize Elementor date picker
-   */
-  if ($("#pr-elementor-date").length) {
-    var bookingWindow = parseInt(pr_ajax.booking_window) || 30
-    var today = new Date()
-    var maxDate = new Date()
-    maxDate.setDate(today.getDate() + bookingWindow)
-
-    $("#pr-elementor-date").datepicker({
-      dateFormat: "yy-mm-dd",
-      minDate: "+1d",
-      maxDate: maxDate,
-      beforeShowDay: function (date) {
-        var day = date.getDay()
-        // Disable Sundays and Mondays (can be customized)
-        if (day === 0 || day === 1) {
-          return [false, "pr-closed-day", "Restaurant closed"]
-        }
-        return [true, "", ""]
-      }
-    })
-  }
 })
