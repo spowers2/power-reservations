@@ -3,7 +3,7 @@
  * Plugin Name: Power Reservations
  * Plugin URI: https://github.com/scottpowers/power-reservations
  * Description: Simple restaurant reservation management system for WordPress.
- * Version: 2.0.4
+ * Version: 2.2.4
  * Author: Scott Powers
  * Author URI: https://scottpowers.dev
  * License: GPL v2 or later
@@ -37,7 +37,7 @@ if (!function_exists('add_action')) {
 }
 
 // Plugin constants
-define('PR_VERSION', '2.0.4'); // Rev4: Fixed form builder validation issues and preview styling
+define('PR_VERSION', '2.2.4'); // Rev20: Added placeholder documentation to email template editor
 define('PR_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('PR_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('PR_PLUGIN_FILE', __FILE__);
@@ -983,18 +983,18 @@ class PowerReservations {
             ),
             array(
                 'template_name' => 'admin_notification',
-                'template_subject' => __('New Reservation Alert - {name} for {date} at {time}', 'power-reservations'),
+                'template_subject' => __('New Reservation Confirmed - {name} for {date} at {time}', 'power-reservations'),
                 'template_content' => '
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
                     <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                         <div style="text-align: center; margin-bottom: 30px;">
-                            <h1 style="color: #28a745; margin: 0; font-size: 28px;">New Reservation Alert</h1>
+                            <h1 style="color: #28a745; margin: 0; font-size: 28px;">New Reservation Confirmed</h1>
                             <div style="width: 50px; height: 3px; background-color: #28a745; margin: 15px auto;"></div>
                         </div>
                         
                         <div style="background-color: #d4edda; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #28a745;">
                             <p style="font-size: 16px; color: #155724; margin: 0; font-weight: bold;">
-                                A new reservation has been submitted and is awaiting your review.
+                                A new reservation has been automatically confirmed and added to your schedule.
                             </p>
                         </div>
                         
@@ -1049,14 +1049,16 @@ class PowerReservations {
                         </div>
                         
                         <div style="background-color: #e8f4f8; padding: 20px; border-radius: 6px; margin: 25px 0;">
-                            <h4 style="color: #1a5673; margin: 0 0 10px 0;">Quick Actions Needed:</h4>
+                            <h4 style="color: #1a5673; margin: 0 0 10px 0;">Reservation Details:</h4>
                             <ul style="margin: 0; padding-left: 20px; color: #333;">
-                                <li>Review and approve/decline the reservation</li>
-                                <li>Check table availability for the requested time</li>
+                                <li>This reservation has been automatically confirmed</li>
+                                <li>Customer has received a confirmation email</li>
+                                <li>Check table arrangements for the requested time</li>
                                 <li>Note any special requests or dietary requirements</li>
-                                <li>Send confirmation to the customer if approved</li>
                             </ul>
                         </div>
+                        
+                        {upcoming_reservations}
                         
                         <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef;">
                             <p style="color: #666; font-size: 14px; margin: 0;">
@@ -1985,6 +1987,75 @@ class PowerReservations {
             echo '<small class="pr-form-help">' . __('Use the template variables shown below to personalize emails', 'power-reservations') . '</small>';
             echo '</div>';
             
+            // Display available placeholders based on template type
+            echo '<div class="pr-form-group pr-placeholders-info">';
+            echo '<label>' . __('Available Template Variables', 'power-reservations') . '</label>';
+            echo '<div class="pr-placeholders-grid">';
+            
+            // Common placeholders for all templates
+            echo '<div class="pr-placeholder-item">';
+            echo '<code>{business_name}</code>';
+            echo '<span>' . __('Your business name', 'power-reservations') . '</span>';
+            echo '</div>';
+            
+            echo '<div class="pr-placeholder-item">';
+            echo '<code>{name}</code>';
+            echo '<span>' . __('Customer\'s name', 'power-reservations') . '</span>';
+            echo '</div>';
+            
+            echo '<div class="pr-placeholder-item">';
+            echo '<code>{email}</code>';
+            echo '<span>' . __('Customer\'s email', 'power-reservations') . '</span>';
+            echo '</div>';
+            
+            echo '<div class="pr-placeholder-item">';
+            echo '<code>{phone}</code>';
+            echo '<span>' . __('Customer\'s phone', 'power-reservations') . '</span>';
+            echo '</div>';
+            
+            echo '<div class="pr-placeholder-item">';
+            echo '<code>{date}</code>';
+            echo '<span>' . __('Reservation date', 'power-reservations') . '</span>';
+            echo '</div>';
+            
+            echo '<div class="pr-placeholder-item">';
+            echo '<code>{time}</code>';
+            echo '<span>' . __('Reservation time', 'power-reservations') . '</span>';
+            echo '</div>';
+            
+            echo '<div class="pr-placeholder-item">';
+            echo '<code>{party_size}</code>';
+            echo '<span>' . __('Party size', 'power-reservations') . '</span>';
+            echo '</div>';
+            
+            echo '<div class="pr-placeholder-item">';
+            echo '<code>{special_requests}</code>';
+            echo '<span>' . __('Special requests', 'power-reservations') . '</span>';
+            echo '</div>';
+            
+            echo '<div class="pr-placeholder-item">';
+            echo '<code>{reservation_id}</code>';
+            echo '<span>' . __('Reservation ID', 'power-reservations') . '</span>';
+            echo '</div>';
+            
+            // Admin-only placeholders
+            $template_type = $edit_template ? $edit_template->template_type : 'customer';
+            if ($template_type === 'admin') {
+                echo '<div class="pr-placeholder-item pr-admin-only">';
+                echo '<code>{admin_link}</code>';
+                echo '<span>' . __('Link to admin dashboard', 'power-reservations') . ' <em>(Admin only)</em></span>';
+                echo '</div>';
+                
+                echo '<div class="pr-placeholder-item pr-admin-only">';
+                echo '<code>{upcoming_reservations}</code>';
+                echo '<span>' . __('List of upcoming reservations (next 7 days)', 'power-reservations') . ' <em>(Admin only)</em></span>';
+                echo '</div>';
+            }
+            
+            echo '</div>'; // .pr-placeholders-grid
+            echo '<small class="pr-form-help">' . __('Copy and paste these variables into your email template. They will be automatically replaced with actual data when emails are sent.', 'power-reservations') . '</small>';
+            echo '</div>'; // .pr-placeholders-info
+            
             echo '<div class="pr-form-group">';
             echo '<label class="pr-checkbox-label">';
             echo '<input type="checkbox" name="is_active" value="1"' . ($edit_template && $edit_template->is_active ? ' checked' : (!$edit_template ? ' checked' : '')) . '>';
@@ -2713,6 +2784,54 @@ class PowerReservations {
         
         $admin_link = admin_url('admin.php?page=power-reservations&action=view&reservation=' . $reservation->id);
         
+        // Get all upcoming reservations (today and future)
+        $today = current_time('Y-m-d');
+        $upcoming_reservations = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table_name 
+            WHERE reservation_date >= %s 
+            AND status IN ('pending', 'approved')
+            ORDER BY reservation_date ASC, reservation_time ASC",
+            $today
+        ));
+        
+        // Build upcoming reservations list
+        $upcoming_list = '';
+        if (!empty($upcoming_reservations)) {
+            $upcoming_list .= '<h3 style="color: #333; margin-top: 30px; margin-bottom: 15px;">All Upcoming Reservations (' . count($upcoming_reservations) . ')</h3>';
+            $upcoming_list .= '<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">';
+            $upcoming_list .= '<thead>';
+            $upcoming_list .= '<tr style="background-color: #f5f5f5;">';
+            $upcoming_list .= '<th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Date</th>';
+            $upcoming_list .= '<th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Time</th>';
+            $upcoming_list .= '<th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Name</th>';
+            $upcoming_list .= '<th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Party</th>';
+            $upcoming_list .= '<th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Phone</th>';
+            $upcoming_list .= '<th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Status</th>';
+            $upcoming_list .= '</tr>';
+            $upcoming_list .= '</thead>';
+            $upcoming_list .= '<tbody>';
+            
+            foreach ($upcoming_reservations as $res) {
+                $is_new = ($res->id == $reservation->id) ? ' style="background-color: #ffffcc; font-weight: bold;"' : '';
+                $status_color = $res->status === 'approved' ? 'green' : ($res->status === 'pending' ? 'orange' : 'gray');
+                
+                $upcoming_list .= '<tr' . $is_new . '>';
+                $upcoming_list .= '<td style="padding: 8px; border: 1px solid #ddd;">' . date('M j, Y', strtotime($res->reservation_date)) . '</td>';
+                $upcoming_list .= '<td style="padding: 8px; border: 1px solid #ddd;">' . date('g:i A', strtotime($res->reservation_time)) . '</td>';
+                $upcoming_list .= '<td style="padding: 8px; border: 1px solid #ddd;">' . esc_html($res->name) . '</td>';
+                $upcoming_list .= '<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">' . $res->party_size . '</td>';
+                $upcoming_list .= '<td style="padding: 8px; border: 1px solid #ddd;">' . esc_html($res->phone) . '</td>';
+                $upcoming_list .= '<td style="padding: 8px; border: 1px solid #ddd; color: ' . $status_color . '; text-transform: capitalize;">' . esc_html($res->status) . '</td>';
+                $upcoming_list .= '</tr>';
+            }
+            
+            $upcoming_list .= '</tbody>';
+            $upcoming_list .= '</table>';
+            $upcoming_list .= '<p style="color: #666; font-size: 12px; font-style: italic;">Note: New reservation is highlighted in yellow.</p>';
+        } else {
+            $upcoming_list = '<p style="margin-top: 20px;">No upcoming reservations.</p>';
+        }
+        
         $placeholders = array(
             '{name}' => $reservation->name,
             '{email}' => $reservation->email,
@@ -2723,11 +2842,18 @@ class PowerReservations {
             '{special_requests}' => $reservation->special_requests,
             '{business_name}' => get_option('pr_business_name', get_bloginfo('name')),
             '{reservation_id}' => $reservation->reservation_id,
-            '{admin_link}' => $admin_link
+            '{admin_link}' => $admin_link,
+            '{upcoming_reservations}' => $upcoming_list
         );
         
         $subject = str_replace(array_keys($placeholders), array_values($placeholders), $template->template_subject);
         $message = str_replace(array_keys($placeholders), array_values($placeholders), $template->template_content);
+        
+        // Only include upcoming reservations if the placeholder exists in the template
+        if (strpos($message, '{upcoming_reservations}') === false) {
+            // Template doesn't have the placeholder, remove it from message to avoid issues
+            $message = str_replace('{upcoming_reservations}', '', $message);
+        }
         
         $admin_email = get_option('pr_business_email', get_option('admin_email'));
         $result = wp_mail($admin_email, $subject, $message, array('Content-Type: text/html; charset=UTF-8'));
@@ -3373,32 +3499,42 @@ class PowerReservations {
     public function handle_reservation_submission() {
         // Check if this is a POST request
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            wp_die(json_encode(['success' => false, 'message' => __('Invalid request method', 'power-reservations')]));
+            wp_send_json_error(__('Invalid request method', 'power-reservations'));
+            return;
         }
         
         // Check if POST data exists
         if (empty($_POST)) {
-            wp_die(json_encode(['success' => false, 'message' => __('No data received', 'power-reservations')]));
+            wp_send_json_error(__('No data received', 'power-reservations'));
+            return;
         }
         
         // Verify nonce
-        if (!isset($_POST['pr_nonce']) || !wp_verify_nonce($_POST['pr_nonce'], 'pr_nonce')) {
-            wp_die(json_encode(['success' => false, 'message' => __('Security check failed', 'power-reservations')]));
+        if (!isset($_POST['pr_nonce']) || !wp_verify_nonce($_POST['pr_nonce'], 'pr_reservation_nonce')) {
+            wp_send_json_error(__('Security check failed', 'power-reservations'));
+            return;
         }
         
-        // Validate required fields
-        $required_fields = ['name', 'email', 'date', 'time', 'party_size'];
+        // Validate required fields - support both pr_ prefixed and non-prefixed field names
+        $name = isset($_POST['pr_name']) ? $_POST['pr_name'] : (isset($_POST['name']) ? $_POST['name'] : '');
+        $email = isset($_POST['pr_email']) ? $_POST['pr_email'] : (isset($_POST['email']) ? $_POST['email'] : '');
+        $phone = isset($_POST['pr_phone']) ? $_POST['pr_phone'] : (isset($_POST['phone']) ? $_POST['phone'] : '');
+        $date = isset($_POST['pr_date']) ? $_POST['pr_date'] : (isset($_POST['date']) ? $_POST['date'] : '');
+        $time = isset($_POST['pr_time']) ? $_POST['pr_time'] : (isset($_POST['time']) ? $_POST['time'] : '');
+        $party_size = isset($_POST['pr_party_size']) ? $_POST['pr_party_size'] : (isset($_POST['party_size']) ? $_POST['party_size'] : '');
+        $special_requests = isset($_POST['pr_special_requests']) ? $_POST['pr_special_requests'] : (isset($_POST['special_requests']) ? $_POST['special_requests'] : '');
+        
+        // Check required fields
         $errors = array();
-        
-        foreach ($required_fields as $field) {
-            if (empty($_POST[$field])) {
-                /* translators: %s: Field name (e.g., Name, Email, Party size) */
-                $errors[] = sprintf(__('%s is required', 'power-reservations'), ucfirst(str_replace('_', ' ', $field)));
-            }
-        }
+        if (empty($name)) $errors[] = __('Name is required', 'power-reservations');
+        if (empty($email)) $errors[] = __('Email is required', 'power-reservations');
+        if (empty($date)) $errors[] = __('Date is required', 'power-reservations');
+        if (empty($time)) $errors[] = __('Time is required', 'power-reservations');
+        if (empty($party_size)) $errors[] = __('Party size is required', 'power-reservations');
         
         if (!empty($errors)) {
-            wp_die(json_encode(['success' => false, 'message' => implode('<br>', $errors)]));
+            wp_send_json_error(implode('<br>', $errors));
+            return;
         }
         
         // Generate unique reservation ID
@@ -3410,14 +3546,14 @@ class PowerReservations {
         // Sanitize data
         $reservation_data = array(
             'reservation_id' => $reservation_id_code,
-            'name' => sanitize_text_field($_POST['name']),
-            'email' => sanitize_email($_POST['email']),
-            'phone' => isset($_POST['phone']) ? sanitize_text_field($_POST['phone']) : '',
-            'reservation_date' => sanitize_text_field($_POST['date']),
-            'reservation_time' => sanitize_text_field($_POST['time']),
-            'party_size' => intval($_POST['party_size']),
-            'special_requests' => isset($_POST['special_requests']) ? sanitize_textarea_field($_POST['special_requests']) : '',
-            'status' => 'pending',
+            'name' => sanitize_text_field($name),
+            'email' => sanitize_email($email),
+            'phone' => sanitize_text_field($phone),
+            'reservation_date' => sanitize_text_field($date),
+            'reservation_time' => sanitize_text_field($time),
+            'party_size' => intval($party_size),
+            'special_requests' => sanitize_textarea_field($special_requests),
+            'status' => 'approved', // Auto-approve reservations by default
             'edit_token' => $edit_token,
             'created_at' => current_time('mysql')
         );
@@ -3437,7 +3573,8 @@ class PowerReservations {
             if (!empty($wpdb->last_error)) {
                 error_log('Power Reservations: Database error during reservation submission: ' . $wpdb->last_error);
             }
-            wp_die(json_encode(['success' => false, 'message' => __('Failed to save reservation. Please try again.', 'power-reservations')]));
+            wp_send_json_error(__('Failed to save reservation. Please try again.', 'power-reservations'));
+            return;
         }
         
         // Get the inserted reservation ID
@@ -3451,13 +3588,10 @@ class PowerReservations {
         
         // Success response
         /* translators: %s: Reservation confirmation code (e.g., A1B2C3D4E5F6) */
-        wp_die(json_encode([
-            'success' => true,
-            'message' => sprintf(
-                __('Reservation submitted successfully! Your confirmation code is: %s. We will contact you shortly to confirm.', 'power-reservations'),
-                $reservation_id_code
-            )
-        ]));
+        wp_send_json_success(sprintf(
+            __('Reservation confirmed! Your confirmation code is: %s. Check your email for details.', 'power-reservations'),
+            $reservation_id_code
+        ));
     }
     
     /**
@@ -3541,9 +3675,13 @@ class PowerReservations {
      * Enqueue frontend scripts and styles
      */
     public function enqueue_scripts() {
+        // Enqueue jQuery UI for datepicker
+        wp_enqueue_script('jquery-ui-datepicker');
+        wp_enqueue_style('jquery-ui-css', 'https://code.jquery.com/ui/1.13.2/themes/smoothness/jquery-ui.css', array(), '1.13.2');
+        
         // Enqueue frontend styles and scripts
         wp_enqueue_style('pr-frontend', PR_PLUGIN_URL . 'assets/frontend.css', array(), PR_VERSION);
-        wp_enqueue_script('pr-frontend', PR_PLUGIN_URL . 'assets/frontend.js', array('jquery'), PR_VERSION, true);
+        wp_enqueue_script('pr-frontend', PR_PLUGIN_URL . 'assets/frontend.js', array('jquery', 'jquery-ui-datepicker'), PR_VERSION, true);
         
         // Apply custom styling if mode is custom
         if (get_option('pr_styling_mode', 'custom') === 'custom') {
@@ -3613,6 +3751,10 @@ class PowerReservations {
         $styling_mode = get_option('pr_styling_mode', 'custom');
         
         echo '<div class="pr-reservation-form-wrapper pr-styling-' . esc_attr($styling_mode) . '">';
+        
+        // Message container for AJAX responses
+        echo '<div id="pr-message" class="pr-message" style="display:none;"></div>';
+        
         echo '<form id="pr-reservation-form" class="pr-reservation-form" method="post">';
         echo wp_nonce_field('pr_reservation_nonce', 'pr_nonce', true, false);
         

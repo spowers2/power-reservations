@@ -103,3 +103,72 @@ jQuery(document).ready(function ($) {
       })
   })
 })
+
+  // Email template type handler - Show/hide admin-only placeholders
+  if ($('#template_type').length && $('.pr-placeholders-info').length) {
+    function updatePlaceholderVisibility() {
+      var templateType = $('#template_type').val();
+      var adminPlaceholders = $('.pr-placeholder-item.pr-admin-only');
+      
+      if (templateType === 'admin') {
+        adminPlaceholders.slideDown(300);
+      } else {
+        adminPlaceholders.slideUp(300);
+      }
+    }
+    
+    // Run on page load
+    updatePlaceholderVisibility();
+    
+    // Run when template type changes
+    $('#template_type').on('change', updatePlaceholderVisibility);
+    
+    // Add click-to-copy functionality for placeholders
+    $('.pr-placeholder-item code').on('click', function() {
+      var text = $(this).text();
+      
+      // Create temporary input to copy text
+      var temp = $('<input>');
+      $('body').append(temp);
+      temp.val(text).select();
+      
+      try {
+        document.execCommand('copy');
+        
+        // Show feedback
+        var originalBg = $(this).css('background-color');
+        $(this).css('background-color', '#86efac');
+        
+        setTimeout(() => {
+          $(this).css('background-color', originalBg);
+        }, 300);
+        
+        // Optional: Show a small tooltip
+        var tooltip = $('<span class="pr-copy-tooltip">Copied!</span>');
+        tooltip.css({
+          position: 'absolute',
+          background: '#10b981',
+          color: '#fff',
+          padding: '4px 8px',
+          borderRadius: '4px',
+          fontSize: '11px',
+          fontWeight: '600',
+          zIndex: '10000',
+          pointerEvents: 'none'
+        });
+        
+        $(this).parent().css('position', 'relative').append(tooltip);
+        
+        setTimeout(() => {
+          tooltip.fadeOut(200, function() {
+            $(this).remove();
+          });
+        }, 1000);
+        
+      } catch (err) {
+        console.error('Failed to copy:', err);
+      }
+      
+      temp.remove();
+    });
+  }

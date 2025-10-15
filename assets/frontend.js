@@ -9,7 +9,13 @@
    
    ======================================== */
 
+console.log("Power Reservations: frontend.js loaded")
+
 jQuery(document).ready(function ($) {
+  console.log("Power Reservations: Document ready")
+  console.log("jQuery version:", $.fn.jquery)
+  console.log("pr_ajax object:", typeof pr_ajax !== "undefined" ? pr_ajax : "UNDEFINED")
+
   /* ========================================
        DATEPICKER INITIALIZATION
        ======================================== */
@@ -170,20 +176,50 @@ jQuery(document).ready(function ($) {
 
   /**
    * Handle reservation form submission via AJAX
+   * Using event delegation for reliability
    */
-  $("#pr-form").on("submit", function (e) {
+  console.log("Attaching form submit handler to document")
+
+  $(document).on("submit", "#pr-reservation-form, #pr-form, #pr-elementor-form", function (e) {
+    console.log("FORM SUBMIT EVENT TRIGGERED!")
     e.preventDefault()
+    e.stopPropagation()
+    e.stopImmediatePropagation()
 
     var form = $(this)
-    var messageDiv = $("#pr-message")
+
+    // Find or create message div (could be in form or before form)
+    var messageDiv = form.find("#pr-message")
+    if (messageDiv.length === 0) {
+      messageDiv = form.prev("#pr-message")
+    }
+    if (messageDiv.length === 0) {
+      messageDiv = $("#pr-message")
+    }
+    // If still not found, create one
+    if (messageDiv.length === 0) {
+      messageDiv = $('<div id="pr-message" class="pr-message" style="display:none;"></div>')
+      form.prepend(messageDiv)
+    }
+
     var submitBtn = form.find(".pr-submit-btn")
 
+    console.log("Form object:", form)
+    console.log("Message div found/created:", messageDiv.length)
+    console.log("Submit button found:", submitBtn.length)
+
     // Validate form
+    console.log("Starting form validation...")
     var errors = validateForm(form)
+    console.log("Validation errors:", errors)
+
     if (errors.length > 0) {
+      console.log("Validation failed, showing errors")
       showMessage(messageDiv, errors.join("<br>"), "error")
-      return
+      return false
     }
+
+    console.log("Validation passed!")
 
     // Show loading state
     form.addClass("pr-loading")
@@ -194,57 +230,82 @@ jQuery(document).ready(function ($) {
     var formData = {
       action: "pr_submit_reservation",
       pr_nonce: form.find('input[name="pr_nonce"]').val(),
-      name: form.find('input[name="name"]').val(),
-      email: form.find('input[name="email"]').val(),
-      phone: form.find('input[name="phone"]').val(),
-      date: form.find('input[name="date"]').val(),
-      time: form.find('select[name="time"]').val(),
-      party_size: form.find('select[name="party_size"]').val(),
-      special_requests: form.find('textarea[name="special_requests"]').val()
+      pr_name: form.find('input[name="pr_name"]').val() || form.find('input[name="name"]').val(),
+      pr_email: form.find('input[name="pr_email"]').val() || form.find('input[name="email"]').val(),
+      pr_phone: form.find('input[name="pr_phone"]').val() || form.find('input[name="phone"]').val(),
+      pr_date: form.find('input[name="pr_date"]').val() || form.find('input[name="date"]').val(),
+      pr_time: form.find('select[name="pr_time"]').val() || form.find('select[name="time"]').val(),
+      pr_party_size: form.find('input[name="pr_party_size"]').val() || form.find('select[name="party_size"]').val(),
+      pr_special_requests: form.find('textarea[name="pr_special_requests"]').val() || form.find('textarea[name="special_requests"]').val()
     }
+
+    console.log("Form submitting via AJAX", formData) // Debug log
+
+    // Check if pr_ajax is defined
+    if (typeof pr_ajax === "undefined" || !pr_ajax.ajax_url) {
+      console.error("pr_ajax is not defined or ajax_url is missing")
+      showMessage(messageDiv, "Configuration error. Please contact support.", "error")
+      form.removeClass("pr-loading")
+      submitBtn.prop("disabled", false).text("Make Reservation")
+      return false
+    }
+
+    console.log("AJAX URL:", pr_ajax.ajax_url) // Debug log
 
     /* ========================================
            AJAX SUBMISSION
            ======================================== */
+
+    console.log("Starting AJAX request...") // Debug log
 
     $.ajax({
       url: pr_ajax.ajax_url,
       type: "POST",
       data: formData,
       dataType: "json",
+      beforeSend: function () {
+        console.log("AJAX beforeSend - request is being sent") // Debug log
+      },
       success: function (response) {
+        console.log("AJAX Success:", response) // Debug log
         form.removeClass("pr-loading")
         submitBtn.prop("disabled", false).text("Make Reservation")
 
         if (response.success) {
-          // Success - show confirmation
-          var successMessage = response.data.message
-          if (response.data.reservation_id) {
-            successMessage += "<br><strong>Reservation ID:</strong> " + response.data.reservation_id
-          }
-          if (response.data.edit_link) {
-            successMessage += '<br><a href="' + response.data.edit_link + '" target="_blank">Manage Your Reservation</a>'
+          // Success - show toast notification
+          var confirmationCode = response.data.match(/[A-Z0-9]{12}/)
+          var toastMessage = "✅ Reservation confirmed!"
+          var toastDetails = "Check your email for confirmation details."
+
+          if (confirmationCode) {
+            toastDetails = "Confirmation code: " + confirmationCode[0] + "<br>Check your email for details."
           }
 
-          showMessage(messageDiv, successMessage, "success")
+          showToast(toastMessage, toastDetails, "success")
 
           // Reset form
           form[0].reset()
           $("#pr-time").html('<option value="">Select a time</option>').prop("disabled", true)
 
-          // Scroll to message
-          $("html, body").animate(
-            {
-              scrollTop: messageDiv.offset().top - 50
-            },
-            500
-          )
+          // Hide any previous messages
+          messageDiv.fadeOut()
         } else {
-          // Error from server
+          // Error from server - show in message div
           showMessage(messageDiv, response.data || "Error submitting reservation. Please try again.", "error")
+
+          // Scroll to error message (only if messageDiv is in DOM and visible)
+          if (messageDiv.length > 0 && messageDiv.is(":visible") && messageDiv.offset()) {
+            $("html, body").animate(
+              {
+                scrollTop: messageDiv.offset().top - 50
+              },
+              500
+            )
+          }
         }
       },
       error: function (xhr, status, error) {
+        console.log("AJAX Error:", xhr, status, error) // Debug log
         form.removeClass("pr-loading")
         submitBtn.prop("disabled", false).text("Make Reservation")
 
@@ -253,8 +314,13 @@ jQuery(document).ready(function ($) {
           console.error("AJAX Error:", error)
         }
         showMessage(messageDiv, "Error submitting reservation. Please try again.", "error")
+      },
+      complete: function () {
+        console.log("AJAX request completed") // Debug log
       }
     })
+
+    return false
   })
 
   /* ========================================
@@ -285,6 +351,47 @@ jQuery(document).ready(function ($) {
   /* ========================================
        UTILITY FUNCTIONS
        ======================================== */
+
+  /**
+   * Show toast notification
+   */
+  function showToast(title, message, type) {
+    // Create toast container if it doesn't exist
+    if ($("#pr-toast-container").length === 0) {
+      $("body").append('<div id="pr-toast-container" class="pr-toast-container"></div>')
+    }
+
+    var icon = type === "success" ? "✓" : type === "error" ? "✕" : "ⓘ"
+    var toast = $('<div class="pr-toast pr-toast-' + type + '">' + '<div class="pr-toast-icon">' + icon + "</div>" + '<div class="pr-toast-content">' + '<div class="pr-toast-title">' + title + "</div>" + '<div class="pr-toast-message">' + message + "</div>" + "</div>" + '<button class="pr-toast-close">&times;</button>' + "</div>")
+
+    $("#pr-toast-container").append(toast)
+
+    // Animate in
+    setTimeout(function () {
+      toast.addClass("pr-toast-show")
+    }, 10)
+
+    // Auto-dismiss after 6 seconds
+    var dismissTimer = setTimeout(function () {
+      dismissToast(toast)
+    }, 6000)
+
+    // Manual dismiss
+    toast.find(".pr-toast-close").on("click", function () {
+      clearTimeout(dismissTimer)
+      dismissToast(toast)
+    })
+  }
+
+  /**
+   * Dismiss toast notification
+   */
+  function dismissToast(toast) {
+    toast.removeClass("pr-toast-show")
+    setTimeout(function () {
+      toast.remove()
+    }, 300)
+  }
 
   /**
    * Show message to user
@@ -343,6 +450,56 @@ jQuery(document).ready(function ($) {
   /* ========================================
        INITIALIZATION
        ======================================== */
+
+  // Check if form exists on page
+  console.log("Checking for forms on page...")
+  console.log("#pr-reservation-form exists:", $("#pr-reservation-form").length)
+  console.log("#pr-form exists:", $("#pr-form").length)
+  console.log("#pr-elementor-form exists:", $("#pr-elementor-form").length)
+
+  // Check for any forms on page
+  console.log("All forms on page:", $("form").length)
+  $("form").each(function (i) {
+    console.log("Form " + i + ":", $(this).attr("id"), $(this).attr("class"))
+  })
+
+  var formSelector = "#pr-reservation-form, #pr-form, #pr-elementor-form"
+  if ($(formSelector).length > 0) {
+    var $form = $(formSelector).first()
+    console.log("Form found! ID:", $form.attr("id"))
+    console.log("Form method:", $form.attr("method"))
+    console.log("Form action:", $form.attr("action"))
+  } else {
+    console.warn("WARNING: No Power Reservations form found! Form may load dynamically.")
+  }
+
+  // Watch for forms being added dynamically (e.g., via Elementor, AJAX)
+  var observer = new MutationObserver(function (mutations) {
+    mutations.forEach(function (mutation) {
+      if (mutation.addedNodes.length) {
+        mutation.addedNodes.forEach(function (node) {
+          if (node.nodeType === 1) {
+            // Element node
+            // Check if the added node is a form or contains a form
+            var $node = $(node)
+            var formSelector = "#pr-reservation-form, #pr-form, #pr-elementor-form"
+            if ($node.is(formSelector) || $node.find(formSelector).length) {
+              console.log("FORM DETECTED DYNAMICALLY! Initializing...")
+              if ($node.find("#pr-date, #pr-elementor-date").length || $node.is("#pr-date, #pr-elementor-date")) {
+                initDatePicker()
+              }
+            }
+          }
+        })
+      }
+    })
+  })
+
+  // Start observing
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  })
 
   // Initialize datepicker if element exists (works for both shortcode and Elementor)
   if ($("#pr-date").length || $("#pr-elementor-date").length) {

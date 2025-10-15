@@ -2293,3 +2293,95 @@ body.toplevel_page_power-reservations .pr-toast {
   text-align: center;
   width: auto !important;
 }
+/* ========================================
+   PLACEHOLDER INFORMATION STYLES
+   ======================================== */
+.pr-placeholders-info {
+  margin-top: 24px !important;
+  padding: 20px !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+}
+
+.pr-placeholders-info label {
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  color: #334155 !important;
+  margin-bottom: 16px !important;
+  display: block !important;
+}
+
+.pr-placeholders-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  gap: 12px !important;
+  margin-bottom: 16px !important;
+}
+
+.pr-placeholder-item {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  padding: 12px !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease !important;
+}
+
+.pr-placeholder-item:hover {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1) !important;
+  transform: translateY(-1px) !important;
+}
+
+.pr-placeholder-item code {
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #3b82f6 !important;
+  background: #eff6ff !important;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  display: inline-block !important;
+  cursor: pointer !important;
+  user-select: all !important;
+}
+
+.pr-placeholder-item code:hover {
+  background: #dbeafe !important;
+}
+
+.pr-placeholder-item span {
+  font-size: 12px !important;
+  color: #64748b !important;
+  line-height: 1.4 !important;
+}
+
+.pr-placeholder-item span em {
+  color: #f59e0b !important;
+  font-style: normal !important;
+  font-weight: 600 !important;
+}
+
+.pr-placeholder-item.pr-admin-only {
+  border-left: 3px solid #f59e0b !important;
+  background: #fffbeb !important;
+}
+
+.pr-placeholder-item.pr-admin-only code {
+  color: #f59e0b !important;
+  background: #fef3c7 !important;
+}
+
+.pr-placeholder-item.pr-admin-only:hover code {
+  background: #fde68a !important;
+}
+
+/* Make placeholders responsive */
+@media (max-width: 782px) {
+  .pr-placeholders-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

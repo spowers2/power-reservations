@@ -605,7 +605,7 @@ class PowerReservations_Elementor_Widget extends \Elementor\Widget_Base {
         $max_date = date('Y-m-d', strtotime("+{$booking_window} days"));
         
         echo '<form id="pr-elementor-form" class="pr-form pr-elementor-form-' . esc_attr($style) . '">';
-        wp_nonce_field('pr_nonce', 'pr_nonce');
+        wp_nonce_field('pr_reservation_nonce', 'pr_nonce');
         
         // Render fields based on configuration
         foreach ($field_order as $field_key) {
