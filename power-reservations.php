@@ -3,7 +3,7 @@
  * Plugin Name: Power Reservations
  * Plugin URI: https://github.com/scottpowers/power-reservations
  * Description: Simple restaurant reservation management system for WordPress.
- * Version: 2.2.4
+ * Version: 2.3.0
  * Author: Scott Powers
  * Author URI: https://scottpowers.dev
  * License: GPL v2 or later
@@ -37,7 +37,7 @@ if (!function_exists('add_action')) {
 }
 
 // Plugin constants
-define('PR_VERSION', '2.2.4'); // Rev20: Added placeholder documentation to email template editor
+define('PR_VERSION', '2.3.0'); // Rev21: Time slot capacity limiting system
 define('PR_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('PR_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('PR_PLUGIN_FILE', __FILE__);
@@ -1622,12 +1622,20 @@ class PowerReservations {
                 update_option('pr_booking_window', intval($_POST['pr_booking_window']));
             }
             
-            // Save time slots with validation
+            // Save time slots with validation and capacity
             if (isset($_POST['pr_time_slots']) && is_array($_POST['pr_time_slots'])) {
                 $time_slots = array();
-                foreach ($_POST['pr_time_slots'] as $slot) {
+                $capacities = isset($_POST['pr_time_slot_capacities']) && is_array($_POST['pr_time_slot_capacities']) 
+                    ? $_POST['pr_time_slot_capacities'] 
+                    : array();
+                
+                foreach ($_POST['pr_time_slots'] as $index => $slot) {
                     if (!empty(trim($slot))) {
-                        $time_slots[] = sanitize_text_field($slot);
+                        $capacity = isset($capacities[$index]) ? intval($capacities[$index]) : 10; // Default capacity of 10
+                        $time_slots[] = array(
+                            'time' => sanitize_text_field($slot),
+                            'capacity' => max(1, $capacity) // Ensure at least 1
+                        );
                     }
                 }
                 update_option('pr_time_slots', $time_slots);
@@ -1638,9 +1646,24 @@ class PowerReservations {
         $business_email = get_option('pr_business_email', get_option('admin_email'));
         $max_party_size = get_option('pr_max_party_size', 8);
         $booking_window = get_option('pr_booking_window', 30);
+        
+        // Get time slots and migrate old format if needed
         $time_slots = get_option('pr_time_slots', array(
             '6:00 PM', '6:30 PM', '7:00 PM', '7:30 PM', '8:00 PM', '8:30 PM', '9:00 PM', '9:30 PM'
         ));
+        
+        // Migrate old format (simple array) to new format (array of objects with capacity)
+        if (!empty($time_slots) && !isset($time_slots[0]['time'])) {
+            $migrated_slots = array();
+            foreach ($time_slots as $slot) {
+                $migrated_slots[] = array(
+                    'time' => $slot,
+                    'capacity' => 10 // Default capacity for migrated slots
+                );
+            }
+            $time_slots = $migrated_slots;
+            update_option('pr_time_slots', $time_slots);
+        }
         
         $settings_saved = isset($_POST['submit']);
         
@@ -1705,12 +1728,16 @@ class PowerReservations {
         
         echo '<div class="pr-form-group pr-time-slots-section">';
     echo '<label class="pr-label">' . __('Available Time Slots', 'power-reservations') . '</label>';
-    echo '<small class="pr-help-text pr-help-text-top">' . __('Drag and drop to reorder time slots', 'power-reservations') . '</small>';
+    echo '<small class="pr-help-text pr-help-text-top">' . __('Drag and drop to reorder time slots. Set capacity to limit reservations per slot.', 'power-reservations') . '</small>';
     echo '<div class="pr-time-slots-container" id="pr-time-slots">';
         foreach ($time_slots as $index => $slot) {
+            $time = isset($slot['time']) ? $slot['time'] : $slot; // Support both old and new format
+            $capacity = isset($slot['capacity']) ? $slot['capacity'] : 10;
+            
             echo '<div class="pr-time-slot-item">';
             echo '<span class="pr-time-drag-handle dashicons dashicons-menu" title="' . __('Drag to reorder', 'power-reservations') . '"></span>';
-            echo '<input type="text" name="pr_time_slots[]" value="' . esc_attr($slot) . '" placeholder="' . __('e.g. 6:00 PM', 'power-reservations') . '" class="pr-input pr-time-input" />';
+            echo '<input type="text" name="pr_time_slots[]" value="' . esc_attr($time) . '" placeholder="' . __('e.g. 6:00 PM', 'power-reservations') . '" class="pr-input pr-time-input" />';
+            echo '<input type="number" name="pr_time_slot_capacities[]" value="' . esc_attr($capacity) . '" min="1" max="999" placeholder="' . __('Capacity', 'power-reservations') . '" class="pr-input pr-capacity-input" title="' . __('Maximum reservations for this time slot', 'power-reservations') . '" />';
             echo '<button type="button" class="pr-btn pr-btn-sm pr-btn-danger pr-remove-time-slot" title="' . __('Remove time slot', 'power-reservations') . '">';
             echo '<span class="dashicons dashicons-no-alt"></span>';
             echo '</button>';
@@ -1720,7 +1747,7 @@ class PowerReservations {
         echo '<button type="button" id="pr-add-time-slot" class="pr-btn pr-btn-sm pr-btn-outline">';
     echo '<span class="dashicons dashicons-plus-alt"></span>' . __('Add Time Slot', 'power-reservations');
     echo '</button>';
-        echo '<small class="pr-help-text">' . __('Time slots will be displayed to customers in the order shown above', 'power-reservations') . '</small>';
+        echo '<small class="pr-help-text">' . __('Time slots will be displayed to customers in the order shown above. Capacity limits the number of reservations per slot.', 'power-reservations') . '</small>';
         echo '</div>';
         echo '</div>';
         
@@ -2744,7 +2771,7 @@ class PowerReservations {
             '{email}' => $reservation->email,
             '{phone}' => $reservation->phone,
             '{date}' => date('F j, Y', strtotime($reservation->reservation_date)),
-            '{time}' => date('g:i A', strtotime($reservation->reservation_time)),
+            '{time}' => $reservation->reservation_time, // Use the time exactly as stored (e.g. "6:00 PM")
             '{party_size}' => $reservation->party_size,
             '{special_requests}' => $reservation->special_requests,
             '{business_name}' => get_option('pr_business_name', get_bloginfo('name')),
@@ -2817,7 +2844,7 @@ class PowerReservations {
                 
                 $upcoming_list .= '<tr' . $is_new . '>';
                 $upcoming_list .= '<td style="padding: 8px; border: 1px solid #ddd;">' . date('M j, Y', strtotime($res->reservation_date)) . '</td>';
-                $upcoming_list .= '<td style="padding: 8px; border: 1px solid #ddd;">' . date('g:i A', strtotime($res->reservation_time)) . '</td>';
+                $upcoming_list .= '<td style="padding: 8px; border: 1px solid #ddd;">' . esc_html($res->reservation_time) . '</td>'; // Use time exactly as stored
                 $upcoming_list .= '<td style="padding: 8px; border: 1px solid #ddd;">' . esc_html($res->name) . '</td>';
                 $upcoming_list .= '<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">' . $res->party_size . '</td>';
                 $upcoming_list .= '<td style="padding: 8px; border: 1px solid #ddd;">' . esc_html($res->phone) . '</td>';
@@ -2837,7 +2864,7 @@ class PowerReservations {
             '{email}' => $reservation->email,
             '{phone}' => $reservation->phone,
             '{date}' => date('F j, Y', strtotime($reservation->reservation_date)),
-            '{time}' => date('g:i A', strtotime($reservation->reservation_time)),
+            '{time}' => $reservation->reservation_time, // Use the time exactly as stored (e.g. "6:00 PM")
             '{party_size}' => $reservation->party_size,
             '{special_requests}' => $reservation->special_requests,
             '{business_name}' => get_option('pr_business_name', get_bloginfo('name')),
@@ -2936,37 +2963,57 @@ class PowerReservations {
      * @return void (outputs JSON response)
      */
     public function check_availability() {
-        check_ajax_referer('pr_nonce', 'nonce');
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'pr_nonce')) {
+            wp_send_json_error(__('Security check failed', 'power-reservations'));
+            return;
+        }
         
-        $date = sanitize_text_field($_POST['date']);
-        $party_size = intval($_POST['party_size']);
+        $date = isset($_POST['date']) ? sanitize_text_field($_POST['date']) : '';
         
-        if (empty($date) || empty($party_size)) {
-            wp_send_json_error(__('Invalid parameters.', 'power-reservations'));
+        if (empty($date)) {
+            wp_send_json_error(__('Date is required', 'power-reservations'));
+            return;
         }
         
         global $wpdb;
         $table_name = $wpdb->prefix . 'pr_reservations';
-        $max_per_slot = get_option('pr_max_reservations_per_slot', 5);
         $time_slots = get_option('pr_time_slots', array());
+        
+        // Migrate old format if needed
+        if (!empty($time_slots) && !isset($time_slots[0]['time'])) {
+            $migrated_slots = array();
+            foreach ($time_slots as $slot) {
+                $migrated_slots[] = array(
+                    'time' => $slot,
+                    'capacity' => 10
+                );
+            }
+            $time_slots = $migrated_slots;
+        }
         
         $available_times = array();
         
-        foreach ($time_slots as $time => $label) {
+        foreach ($time_slots as $slot) {
+            $time = $slot['time'];
+            $capacity = $slot['capacity'];
+            
+            // Count existing reservations for this date and time
             $existing_count = $wpdb->get_var($wpdb->prepare(
-                "SELECT SUM(party_size) FROM $table_name WHERE reservation_date = %s AND reservation_time = %s AND status IN ('pending', 'approved')",
+                "SELECT COUNT(*) FROM $table_name WHERE reservation_date = %s AND reservation_time = %s AND status IN ('pending', 'approved')",
                 $date, $time
             ));
             
-            $remaining_capacity = $max_per_slot - intval($existing_count);
+            $remaining_capacity = $capacity - intval($existing_count);
+            $is_available = $remaining_capacity > 0;
             
-            if ($remaining_capacity >= $party_size) {
-                $available_times[] = array(
-                    'value' => $time,
-                    'label' => $label,
-                    'remaining' => $remaining_capacity
-                );
-            }
+            $available_times[] = array(
+                'value' => $time,
+                'label' => $time,
+                'capacity' => $capacity,
+                'remaining' => max(0, $remaining_capacity),
+                'available' => $is_available
+            );
         }
         
         wp_send_json_success($available_times);
@@ -3537,6 +3584,44 @@ class PowerReservations {
             return;
         }
         
+        // Check capacity for the selected time slot
+        global $wpdb;
+        $table_name = $this->get_reservations_table();
+        $time_slots = get_option('pr_time_slots', array());
+        
+        // Migrate old format if needed
+        if (!empty($time_slots) && !isset($time_slots[0]['time'])) {
+            $migrated_slots = array();
+            foreach ($time_slots as $slot) {
+                $migrated_slots[] = array(
+                    'time' => $slot,
+                    'capacity' => 10
+                );
+            }
+            $time_slots = $migrated_slots;
+        }
+        
+        // Find the capacity for the selected time slot
+        $slot_capacity = 10; // Default capacity
+        foreach ($time_slots as $slot) {
+            if ($slot['time'] === $time) {
+                $slot_capacity = $slot['capacity'];
+                break;
+            }
+        }
+        
+        // Count existing reservations for this date and time
+        $existing_count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table_name WHERE reservation_date = %s AND reservation_time = %s AND status IN ('pending', 'approved')",
+            $date, $time
+        ));
+        
+        // Check if time slot is full
+        if (intval($existing_count) >= $slot_capacity) {
+            wp_send_json_error(__('Sorry, this time slot is now fully booked. Please select a different time.', 'power-reservations'));
+            return;
+        }
+        
         // Generate unique reservation ID
         $reservation_id_code = strtoupper(wp_generate_password(12, false));
         
@@ -3558,10 +3643,7 @@ class PowerReservations {
             'created_at' => current_time('mysql')
         );
         
-        // Insert into database
-        global $wpdb;
-        $table_name = $this->get_reservations_table();
-        
+        // Insert into database (wpdb already declared above)
         $result = $wpdb->insert(
             $table_name,
             $reservation_data,
@@ -3818,11 +3900,8 @@ class PowerReservations {
             echo '<div class="pr-form-group">';
             echo '<label class="pr-label" for="pr_time">Time <span class="pr-required">*</span></label>';
             echo '<select id="pr_time" name="pr_time" class="pr-input" required>';
-            echo '<option value="">Select time...</option>';
-            $time_slots = get_option('pr_time_slots', array('6:00 PM', '7:00 PM', '8:00 PM'));
-            foreach ($time_slots as $slot) {
-                echo '<option value="' . esc_attr($slot) . '">' . esc_html($slot) . '</option>';
-            }
+            echo '<option value="">Select date first...</option>';
+            // Time slots will be loaded dynamically via AJAX based on selected date
             echo '</select>';
             echo '</div>';
             

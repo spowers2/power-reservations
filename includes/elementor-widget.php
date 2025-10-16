@@ -627,10 +627,8 @@ class PowerReservations_Elementor_Widget extends \Elementor\Widget_Base {
             switch ($field_key) {
                 case 'time':
                     echo '<select id="pr-elementor-time" name="time" ' . $required_attr . '>';
-                    echo '<option value="">' . __('Select a time', 'power-reservations') . '</option>';
-                    foreach ($time_slots as $slot) {
-                        echo '<option value="' . esc_attr($slot) . '">' . esc_html($slot) . '</option>';
-                    }
+                    echo '<option value="">' . __('Select date first...', 'power-reservations') . '</option>';
+                    // Time slots will be loaded dynamically via AJAX based on selected date
                     echo '</select>';
                     break;
                     

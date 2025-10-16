@@ -59,8 +59,8 @@ jQuery(document).ready(function ($) {
         return [true, "", ""]
       },
       onSelect: function (dateText) {
-        $("#pr-time").prop("disabled", true).html('<option value="">Checking availability...</option>')
-        checkAvailability(dateText)
+        console.log("Power Reservations: Date selected:", dateText)
+        loadAvailableTimeSlots(dateText)
       }
     })
 
@@ -71,18 +71,45 @@ jQuery(document).ready(function ($) {
   }
 
   /* ========================================
+       DATE CHANGE HANDLERS
+       ======================================== */
+
+  /**
+   * Handle date changes for regular date inputs (non-datepicker)
+   */
+  $(document).on("change", "#pr_date, #pr-date, #pr-elementor-date, [name='pr_date'], [name='date']", function () {
+    var date = $(this).val()
+    if (date) {
+      console.log("Power Reservations: Date changed via input:", date)
+      loadAvailableTimeSlots(date)
+    }
+  })
+
+  /* ========================================
        AVAILABILITY CHECKING
        ======================================== */
 
   /**
-   * Check time slot availability for selected date
+   * Load available time slots for selected date
    */
-  function checkAvailability(date) {
-    var partySize = $("#pr-party-size").val()
+  function loadAvailableTimeSlots(date) {
+    console.log("Power Reservations: Loading time slots for date:", date)
 
-    if (!date || !partySize) {
+    // Find time select - support multiple selectors
+    var $timeSelect = $("#pr_time, #pr-time, #pr-elementor-time, [name='pr_time'], [name='time']").first()
+
+    if (!$timeSelect.length) {
+      console.error("Power Reservations: Time select not found")
       return
     }
+
+    if (!date) {
+      console.log("Power Reservations: No date provided")
+      return
+    }
+
+    // Show loading state
+    $timeSelect.prop("disabled", true).html('<option value="">Loading available times...</option>')
 
     $.ajax({
       url: pr_ajax.ajax_url,
@@ -90,31 +117,49 @@ jQuery(document).ready(function ($) {
       data: {
         action: "pr_check_availability",
         nonce: pr_ajax.nonce,
-        date: date,
-        party_size: partySize
+        date: date
       },
       success: function (response) {
-        var timeSelect = $("#pr-time")
-        timeSelect.html('<option value="">Select a time</option>')
+        console.log("Power Reservations: Availability response:", response)
 
-        if (response.success && response.data.length > 0) {
+        $timeSelect.html('<option value="">Select time...</option>')
+
+        if (response.success && response.data && response.data.length > 0) {
           $.each(response.data, function (index, slot) {
-            var optionText = slot.label
-            if (slot.remaining < 10) {
-              optionText += " (" + slot.remaining + " spots left)"
-            }
-            timeSelect.append('<option value="' + slot.value + '">' + optionText + "</option>")
-          })
-        } else {
-          timeSelect.append('<option value="" disabled>No times available for this date</option>')
-        }
+            if (slot.available) {
+              // Time slot is available
+              var optionText = slot.label
 
-        timeSelect.prop("disabled", false)
+              // Show remaining capacity if low
+              if (slot.remaining <= 3 && slot.remaining > 0) {
+                optionText += " (" + slot.remaining + " spot" + (slot.remaining !== 1 ? "s" : "") + " left)"
+              }
+
+              $timeSelect.append('<option value="' + slot.value + '">' + optionText + "</option>")
+            } else {
+              // Time slot is full - show as disabled
+              $timeSelect.append('<option value="' + slot.value + '" disabled>' + slot.label + " (Fully Booked)</option>")
+            }
+          })
+
+          $timeSelect.prop("disabled", false)
+        } else {
+          $timeSelect.append('<option value="" disabled>No times available for this date</option>')
+          $timeSelect.prop("disabled", true)
+        }
       },
-      error: function () {
-        $("#pr-time").html('<option value="">Error loading times</option>').prop("disabled", false)
+      error: function (xhr, status, error) {
+        console.error("Power Reservations: AJAX error:", error)
+        $timeSelect.html('<option value="">Error loading times. Please try again.</option>').prop("disabled", false)
       }
     })
+  }
+
+  /**
+   * Legacy function for backwards compatibility
+   */
+  function checkAvailability(date) {
+    loadAvailableTimeSlots(date)
   }
 
   /* ========================================

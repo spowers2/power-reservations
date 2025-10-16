@@ -2385,3 +2385,30 @@ body.toplevel_page_power-reservations .pr-toast {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* ========================================
+   TIME SLOT CAPACITY STYLING
+   ======================================== */
+.pr-time-slot-item .pr-capacity-input {
+  width: 80px !important;
+  text-align: center !important;
+  margin-left: 8px !important;
+  font-weight: 600 !important;
+  color: #3b82f6 !important;
+}
+
+.pr-time-slot-item .pr-capacity-input:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+.pr-time-slots-container {
+  margin-bottom: 12px !important;
+}
+
+.pr-time-slot-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-bottom: 8px !important;
+}
