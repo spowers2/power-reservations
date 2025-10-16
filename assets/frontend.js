@@ -135,10 +135,20 @@ jQuery(document).ready(function ($) {
                 optionText += " (" + slot.remaining + " spot" + (slot.remaining !== 1 ? "s" : "") + " left)"
               }
 
-              $timeSelect.append('<option value="' + slot.value + '">' + optionText + "</option>")
+              var option = $("<option></option>")
+                .attr("value", slot.value)
+                .text(optionText)
+                .attr("title", slot.remaining + " of " + slot.capacity + " spots available")
+
+              $timeSelect.append(option)
             } else {
-              // Time slot is full - show as disabled
-              $timeSelect.append('<option value="' + slot.value + '" disabled>' + slot.label + " (Fully Booked)</option>")
+              // Time slot is full - show as disabled with tooltip
+              var fullText = slot.label + " (Fully Booked)"
+              var tooltipText = "This time slot is fully booked (" + slot.booked + " of " + slot.capacity + " reservations). Please select another time."
+
+              var option = $("<option></option>").attr("value", slot.value).attr("disabled", "disabled").text(fullText).attr("title", tooltipText)
+
+              $timeSelect.append(option)
             }
           })
 

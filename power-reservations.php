@@ -2996,7 +2996,7 @@ class PowerReservations {
         
         foreach ($time_slots as $slot) {
             $time = $slot['time'];
-            $capacity = $slot['capacity'];
+            $capacity = intval($slot['capacity']);
             
             // Count existing reservations for this date and time
             $existing_count = $wpdb->get_var($wpdb->prepare(
@@ -3004,13 +3004,16 @@ class PowerReservations {
                 $date, $time
             ));
             
-            $remaining_capacity = $capacity - intval($existing_count);
+            // Ensure existing_count is never null
+            $existing_count = intval($existing_count);
+            $remaining_capacity = $capacity - $existing_count;
             $is_available = $remaining_capacity > 0;
             
             $available_times[] = array(
                 'value' => $time,
                 'label' => $time,
                 'capacity' => $capacity,
+                'booked' => $existing_count,
                 'remaining' => max(0, $remaining_capacity),
                 'available' => $is_available
             );

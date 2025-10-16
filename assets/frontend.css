@@ -26,13 +26,13 @@
   --pr-secondary: #764ba2;
   --pr-accent: #f093fb;
   --pr-gradient: linear-gradient(135deg, var(--pr-primary) 0%, var(--pr-secondary) 100%);
-  
+
   /* Status Colors */
   --pr-success: #10b981;
   --pr-warning: #f59e0b;
   --pr-error: #ef4444;
   --pr-info: #3b82f6;
-  
+
   /* Neutral Palette */
   --pr-white: #ffffff;
   --pr-gray-50: #f9fafb;
@@ -45,7 +45,7 @@
   --pr-gray-700: #374151;
   --pr-gray-800: #1f2937;
   --pr-gray-900: #111827;
-  
+
   /* Typography Scale */
   --pr-font-xs: 0.75rem;
   --pr-font-sm: 0.875rem;
@@ -55,7 +55,7 @@
   --pr-font-2xl: 1.5rem;
   --pr-font-3xl: 1.875rem;
   --pr-font-4xl: 2.25rem;
-  
+
   /* Spacing Scale */
   --pr-space-xs: 0.25rem;
   --pr-space-sm: 0.5rem;
@@ -64,7 +64,7 @@
   --pr-space-xl: 2rem;
   --pr-space-2xl: 3rem;
   --pr-space-3xl: 4rem;
-  
+
   /* Border Radius */
   --pr-radius-sm: 0.375rem;
   --pr-radius-md: 0.5rem;
@@ -72,7 +72,7 @@
   --pr-radius-xl: 1rem;
   --pr-radius-2xl: 1.5rem;
   --pr-radius-full: 9999px;
-  
+
   /* Shadows */
   --pr-shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --pr-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
@@ -81,7 +81,7 @@
   --pr-shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
   --pr-shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
   --pr-shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
-  
+
   /* Transitions */
   --pr-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --pr-transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -360,6 +360,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -370,6 +371,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -391,11 +393,11 @@
   .pr-form-container {
     padding: var(--pr-space-2xl);
   }
-  
+
   .pr-reservation-wrapper {
     max-width: 700px;
   }
-  
+
   .pr-form-content {
     padding: var(--pr-space-3xl);
   }
@@ -406,7 +408,7 @@
   .pr-form-container {
     padding: var(--pr-space-lg);
   }
-  
+
   .pr-form-row-group {
     grid-template-columns: 1fr;
   }
@@ -419,29 +421,29 @@
     align-items: flex-start;
     min-height: auto;
   }
-  
+
   .pr-reservation-wrapper {
     margin: var(--pr-space-lg) 0;
   }
-  
+
   .pr-form-header {
     padding: var(--pr-space-xl);
   }
-  
+
   .pr-form-header h3 {
     font-size: var(--pr-font-2xl);
     flex-direction: column;
     gap: var(--pr-space-sm);
   }
-  
+
   .pr-form-content {
     padding: var(--pr-space-xl);
   }
-  
+
   .pr-form-row-group {
     grid-template-columns: 1fr;
   }
-  
+
   .pr-submit-button {
     width: 100%;
     padding: var(--pr-space-lg);
@@ -453,22 +455,23 @@
   .pr-form-container {
     padding: var(--pr-space-sm);
   }
-  
+
   .pr-form-header,
   .pr-form-content {
     padding: var(--pr-space-lg);
   }
-  
+
   .pr-form-header h3 {
     font-size: var(--pr-font-xl);
   }
-  
+
   .pr-form-row input,
   .pr-form-row select,
   .pr-form-row textarea {
     padding: var(--pr-space-md);
   }
 }
+
 /* ========================================
    TOAST NOTIFICATIONS
    ======================================== */
@@ -598,7 +601,7 @@
     left: 10px;
     max-width: none;
   }
-  
+
   .pr-toast {
     margin-bottom: 10px;
   }
@@ -608,18 +611,51 @@
   .pr-toast {
     padding: 14px 16px;
   }
-  
+
   .pr-toast-icon {
     width: 28px;
     height: 28px;
     font-size: 16px;
   }
-  
+
   .pr-toast-title {
     font-size: 15px;
   }
-  
+
   .pr-toast-message {
     font-size: 13px;
   }
+}
+
+/* ========================================
+   TIME SLOT AVAILABILITY STYLES
+   ======================================== */
+.pr-form select option:disabled {
+  color: #9ca3af !important;
+  background-color: #f3f4f6 !important;
+  font-style: italic;
+  cursor: not-allowed;
+}
+
+.pr-form select option[disabled]:hover {
+  background-color: #f3f4f6 !important;
+}
+
+/* Tooltip styles for disabled time slots */
+select[name="pr_time"] option,
+select[name="time"] option,
+#pr_time option,
+#pr-time option,
+#pr-elementor-time option {
+  padding: 8px;
+  cursor: pointer;
+}
+
+select[name="pr_time"] option:disabled,
+select[name="time"] option:disabled,
+#pr_time option:disabled,
+#pr-time option:disabled,
+#pr-elementor-time option:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
